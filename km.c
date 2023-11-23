@@ -3,10 +3,13 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <semaphore.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 // Shared memory key
 #define SHM_KEY 1234
+#define SEM_KEY "/my_semaphore"
 
 // Special value to indicate no key pressed
 #define NO_KEY_PRESSED 0
@@ -32,14 +35,19 @@ int main() {
         perror("shmat");
         exit(1);
     }
-    int pressedKey = *sharedMemory;
+
+    // Initialize semaphore
+    sem_t *semaphore = sem_open(SEM_KEY, O_CREAT, 0666, 0);
+    if (semaphore == SEM_FAILED) {
+        perror("sem_open");
+        exit(1);
+    }
+
 
     // Main loop
     while (1) {
-        // Wait until a new key is pressed. THIS IS BUSY WAITING. NEED TO FIX ASAP.
-        while (*sharedMemory == NO_KEY_PRESSED) {
-            usleep(100000); // 100k = 100 ms
-        }
+        // Wait for the semaphore to be signaled
+        sem_wait(semaphore);
 
         // Read the pressed key from shared memory
         int pressedKey = *sharedMemory;
@@ -54,12 +62,14 @@ int main() {
 
         // Clear the shared memory after processing the key
         clearSharedMemory(sharedMemory);
-        usleep(1000000);
+        usleep(500000);
     }
 
 
     // Detach the shared memory segment
     shmdt(sharedMemory);
+    // Close and unlink the semaphore
+    sem_close(semaphore);
 
     return 0;
 }

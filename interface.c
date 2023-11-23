@@ -4,17 +4,22 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <semaphore.h>
+#include <ctype.h>
+#include <fcntl.h>
 
 // Shared memory key
 #define SHM_KEY 1234
+#define SEM_KEY "/my_semaphore"
 
 void createBlackboard();
 void drawDrone(int droneX, int droneY);
-void handleInput(int *sharedKey);
+void handleInput(int *sharedKey, sem_t *semaphore);
 
 int main() {
     initscr();
     timeout(0); // Set non-blocking getch
+    curs_set(0); // Hide the cursor from the terminal
     createBlackboard();
 
     // Initialize shared memory
@@ -33,6 +38,13 @@ int main() {
         exit(1);
     }
 
+    // Initialize semaphore
+    sem_t *semaphore = sem_open(SEM_KEY, O_CREAT, 0666, 0);
+    if (semaphore == SEM_FAILED) {
+        perror("sem_open");
+        exit(1);
+    }
+
     // Initial drone position (middle of the blackboard)
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
@@ -46,16 +58,20 @@ int main() {
     while (1) {
         createBlackboard();
         drawDrone(droneX, droneY);
-        handleInput(sharedMemory);
-        usleep(100000); // Add a small delay to control the speed
+        handleInput(sharedMemory, semaphore);
+        usleep(200000); // Add a small delay to control the speed
         continue;
     }
     
     // Detach the shared memory segment
-    //shmdt(sharedMemory);
+    shmdt(sharedMemory);
+
+    // Close and unlink the semaphore
+    sem_close(semaphore);
 
     // End the shared memory segment
     shmctl(sharedKey, IPC_RMID, NULL);
+
     endwin();
     return 0;
 }
@@ -89,17 +105,27 @@ void drawDrone(int droneX, int droneY) {
 }
 
 
-void handleInput(int *sharedKey) {
+void handleInput(int *sharedKey, sem_t *semaphore) {
     int ch;
 
+    // Disable echoing
+    noecho();
+
     if ((ch = getch()) != ERR) {
-        // Debugging: Print the pressed key
-        printf("Pressed key: %d\n", ch);
+        // Debugging: Commented out the print statement
+        // printf("Pressed key: %d\n", ch);
 
         // Store the pressed key in shared memory
         *sharedKey = ch;
+
+        // Signal the semaphore to notify the server
+        sem_post(semaphore);
     }
+
+    // Enable echoing
+    echo();
 
     // Clear the input buffer
     flushinp();
 }
+
