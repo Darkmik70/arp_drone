@@ -2,15 +2,36 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+// Shared memory key
+#define SHM_KEY 1234
 
 void createBlackboard();
 void drawDrone(int droneX, int droneY);
-void handleInput();
+void handleInput(int *sharedKey);
 
 int main() {
     initscr();
     timeout(0); // Set non-blocking getch
     createBlackboard();
+
+    // Initialize shared memory
+    int sharedKey;
+    int *sharedMemory;
+
+    // Try to create a new shared memory segment
+    if ((sharedKey = shmget(SHM_KEY, sizeof(int), IPC_CREAT | 0666)) < 0) {
+        perror("shmget");
+        exit(1);
+    }
+
+    // Attach the shared memory segment
+    if ((sharedMemory = shmat(sharedKey, NULL, 0)) == (int *)-1) {
+        perror("shmat");
+        exit(1);
+    }
 
     // Initial drone position (middle of the blackboard)
     int maxY, maxX;
@@ -23,13 +44,18 @@ int main() {
     init_pair(1, COLOR_BLUE, COLOR_BLACK);
 
     while (1) {
-
+        createBlackboard();
         drawDrone(droneX, droneY);
-        handleInput();
+        handleInput(sharedMemory);
         usleep(100000); // Add a small delay to control the speed
         continue;
     }
+    
+    // Detach the shared memory segment
+    //shmdt(sharedMemory);
 
+    // End the shared memory segment
+    shmctl(sharedKey, IPC_RMID, NULL);
     endwin();
     return 0;
 }
@@ -63,12 +89,15 @@ void drawDrone(int droneX, int droneY) {
 }
 
 
-void handleInput() {
+void handleInput(int *sharedKey) {
     int ch;
 
-    while ((ch = getch()) != ERR) {
-        // Print the pressed key to the standard output
-        printf("Pressed key: %c\n", ch);
+    if ((ch = getch()) != ERR) {
+        // Debugging: Print the pressed key
+        printf("Pressed key: %d\n", ch);
+
+        // Store the pressed key in shared memory
+        *sharedKey = ch;
     }
 
     // Clear the input buffer
