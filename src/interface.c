@@ -1,3 +1,5 @@
+#include "interface.h"
+#include "constants.h"
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,42 +10,60 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-// Shared memory key
-#define SHM_KEY 1234
-#define SEM_KEY "/my_semaphore"
 
-void createBlackboard();
-void drawDrone(int droneX, int droneY);
-void handleInput(int *sharedKey, sem_t *semaphore);
-
-int main() {
+int main()
+{
     initscr();
     timeout(0); // Set non-blocking getch
     curs_set(0); // Hide the cursor from the terminal
     createBlackboard();
 
-    // Initialize shared memory
+    // Initialize shared memory for key presses
     int sharedKey;
     int *sharedMemory;
+    // Semaphore for drone positions    
+    sem_t *semaphore, *semaphorePos;
 
-    // Try to create a new shared memory segment
-    if ((sharedKey = shmget(SHM_KEY, sizeof(int), IPC_CREAT | 0666)) < 0) {
+
+    if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), IPC_CREAT | 0666)) < 0) {
         perror("shmget");
         exit(1);
     }
 
-    // Attach the shared memory segment
     if ((sharedMemory = shmat(sharedKey, NULL, 0)) == (int *)-1) {
         perror("shmat");
         exit(1);
     }
 
-    // Initialize semaphore
-    sem_t *semaphore = sem_open(SEM_KEY, O_CREAT, 0666, 0);
+    // Initialize semaphore for key presses
+    sem_t *semaphore = sem_open(SEM_KEY_1, O_CREAT, 0666, 0);
     if (semaphore == SEM_FAILED) {
         perror("sem_open");
         exit(1);
     }
+
+    
+    // Initialize shared memory for drone positions
+    int sharedPos;
+    int *sharedPosition;
+
+    if ((sharedPos = shmget(SHM_KEY_2, 2 * sizeof(int), IPC_CREAT | 0666)) < 0) {
+        perror("shmget");
+        exit(1);
+    }
+
+    if ((sharedPosition = shmat(sharedPos, NULL, 0)) == (int *)-1) {
+        perror("shmat");
+        exit(1);
+    }
+
+    // Initialize semaphore for drone positions
+    sem_t *semaphorePos = sem_open(SEM_KEY_2, O_CREAT, 0666, 0);
+    if (semaphorePos == SEM_FAILED) {
+        perror("sem_open");
+        exit(1);
+    }
+    
 
     // Initial drone position (middle of the blackboard)
     int maxY, maxX;
@@ -51,15 +71,28 @@ int main() {
     int droneX = maxX / 2;
     int droneY = maxY / 2;
 
+    // Write initial drone position in its corresponding shared memory
+    int dronePosition[2];
+    dronePosition[0] = droneX;
+    dronePosition[1] = droneY;
+    initializeDronePosition(sharedPosition, dronePosition);
+
     // Initialize color
     start_color();
     init_pair(1, COLOR_BLUE, COLOR_BLACK);
 
     while (1) {
+        printf("Entered while loop");
         createBlackboard();
-        drawDrone(droneX, droneY);
+        drawDrone(dronePosition[0], dronePosition[1]);
         handleInput(sharedMemory, semaphore);
-        usleep(200000); // Add a small delay to control the speed
+        //Update drone position
+        //sem_wait(semaphorePos);
+        dronePosition[0] = sharedPosition[0];
+        dronePosition[1] = sharedPosition[1];
+        //sem_post(semaphorePos);
+
+        usleep(20000);
         continue;
     }
     
@@ -77,7 +110,9 @@ int main() {
 }
 
 
-void createBlackboard() {
+
+void createBlackboard()
+{
     // Clear the screen
     clear();
 
@@ -95,8 +130,8 @@ void createBlackboard() {
     refresh();
 }
 
-
-void drawDrone(int droneX, int droneY) {
+void drawDrone(int droneX, int droneY)
+{
 
     // Draw the center of the cross
     mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
@@ -104,14 +139,15 @@ void drawDrone(int droneX, int droneY) {
     refresh();
 }
 
-
-void handleInput(int *sharedKey, sem_t *semaphore) {
+void handleInput(int *sharedKey, sem_t *semaphore)
+{
     int ch;
 
     // Disable echoing
     noecho();
 
-    if ((ch = getch()) != ERR) {
+    if ((ch = getch()) != ERR)
+    {
         // Debugging: Commented out the print statement
         // printf("Pressed key: %d\n", ch);
 
@@ -129,3 +165,10 @@ void handleInput(int *sharedKey, sem_t *semaphore) {
     flushinp();
 }
 
+void initializeDronePosition(int *sharedPos, int dronePosition[2]) {
+
+    //sem_wait(semaphorePos);
+    sharedPos[0] = dronePosition[0];
+    sharedPos[1] = dronePosition[1];
+    //sem_post(semaphorePos);
+}
