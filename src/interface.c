@@ -1,6 +1,5 @@
 #include "interface.h"
 #include "constants.h"
-
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +21,9 @@ int main()
     // Initialize shared memory for key presses
     int sharedKey;
     int *sharedMemory;
+    // Semaphore for drone positions    
+    sem_t *semaphore, *semaphorePos;
+
 
     if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), IPC_CREAT | 0666)) < 0) {
         perror("shmget");

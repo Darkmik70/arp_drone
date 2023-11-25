@@ -11,8 +11,6 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-// Semaphore for drone positions
-sem_t *semaphore, *semaphorePos;
 
 //TODO: Add docs
 void createBlackboard();

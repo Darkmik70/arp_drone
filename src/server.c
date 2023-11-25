@@ -1,6 +1,5 @@
 #include "server.h"
 #include "constants.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,6 +13,10 @@ int main() {
     // Attach to shared memory for key presses
     int sharedKey;
     int *sharedMemory;
+    // Semaphore for key presses
+    sem_t *semaphore;
+    // Semaphore for drone positions
+    sem_t *semaphorePos;
 
     if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), IPC_CREAT | 0666)) < 0) {
         perror("shmget");

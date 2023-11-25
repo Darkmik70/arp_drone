@@ -18,7 +18,7 @@ clean:
 
 
 drone:
-	gcc -I include -o $(BUILDDIR)/drone $(SRCDIR)/drone.c -pthread
+	gcc -I include -o $(BUILDDIR)/drone $(SRCDIR)/drone.c
 
 main:
 	gcc -I include -o $(BUILDDIR)/main $(SRCDIR)/main.c
@@ -27,7 +27,7 @@ server:
 	gcc -I include -o $(BUILDDIR)/server $(SRCDIR)/server.c -pthread
 
 interface:
-	gcc  -I include -o $(BUILDDIR)/interface $(SRCDIR)/interface.c -lncurses -pthread
+	gcc -I include -o $(BUILDDIR)/interface $(SRCDIR)/interface.c -lncurses -pthread
 
 km:
 	gcc -I include -o $(BUILDDIR)/key_manager $(SRCDIR)/key_manager.c -pthread

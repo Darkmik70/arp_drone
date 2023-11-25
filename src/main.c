@@ -21,11 +21,11 @@ int main(int argc, char *argv[])
     create_child(km_args[0], km_args);
     p_num++;
 
-    
     /* Drone */
     char* drone_args[] = {"konsole", "-e", "./build/drone", NULL};
     create_child(drone_args[0], drone_args);
     p_num++;
+
 
     /* Wait for all children to close */
     for (int i = 0; i < p_num; i++)
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("Child Processes closed, closing main process...\n");
+    printf("All child processes closed, closing main process...\n");
     return 0;
 }
 

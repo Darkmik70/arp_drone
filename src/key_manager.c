@@ -10,8 +10,8 @@
 #include <fcntl.h>
 
 
-int main() {
-
+int main() 
+{
     // Initialize shared memory
     int sharedKey;
     int *sharedMemory;
@@ -61,7 +61,6 @@ int main() {
         //usleep(500000);
     }
 
-
     // Detach the shared memory segment
     shmdt(sharedMemory);
     // Close and unlink the semaphore
@@ -70,43 +69,53 @@ int main() {
     return 0;
 }
 
-// Function implementations
 
+// US Keyboard assumed
 char* determineAction(int pressedKey)
 {
-    // Determine the action based on the pressed key
-    switch (toupper((char)pressedKey))
+    char key = toupper(pressedKey);
+
+    if ( key == 'W' || key == 'I')
     {
-        case 'W':
-            return "Up";
-        case 'S':
-            return "Down";
-        case 'A':
-            return "Left";
-        case 'D':
-            return "Right";
-        case 'Q':
-            return "Up-left";
-        case 'E':
-            return "Up-right";
-        case 'Z':
-            return "Down-left";
-        case 'C':
-            return "Down-right";
-        case 'X':
-            return "STOP";
-        case 'R':
-            return "Reset";
-        case 'T':
-            return "Suspend";
-        case 'Y':
-            return "Quit";
-        default:
-            return "None";
+        return "Up";
+    }
+    if ( key == 'X' || key == ',')
+    {
+        return "Down";
+    }
+    if ( key == 'A' || key == 'J')
+    {
+        return "Right";
+    }
+    if ( key == 'D' || key == 'L')
+    {
+        return "Left";
+    }
+    if ( key == 'Q' || key == 'U')
+    {
+        return "UP-LEFT";
+    }
+    if ( key == 'E' || key == 'O')
+    {
+        return "UP-RIGHT";
+    }
+    if ( key == 'Z' || key == 'M')
+    {
+        return "DOWN-LEFT";
+    }
+    if ( key == 'C' || key == '.')
+    {
+        return "DOWN-RIGHT";
+    }
+    if ( key == 'S' || key == 'K')
+    {
+        return "STOP";
+    }
+    else
+    {
+        return "None";
     }
 }
-
-
 
 void sendActionToDrone(char* action) 
 {
