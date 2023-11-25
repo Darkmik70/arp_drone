@@ -1,3 +1,6 @@
+#include "server.h"
+#include "constants.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -6,16 +9,7 @@
 #include <semaphore.h>
 #include <fcntl.h>
 
-// Shared memory key
-#define SHM_KEY 1234
-#define SEM_KEY "/my_semaphore"
 
-// Special value to indicate no key pressed
-#define NO_KEY_PRESSED 0
-
-// Function prototypes
-void createSharedMemory();
-void handleInput(int *sharedKey, sem_t *semaphore);
 
 int main() {
     // Initialize shared memory

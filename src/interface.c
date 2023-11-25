@@ -1,3 +1,6 @@
+#include "interface.h"
+#include "constants.h"
+
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,15 +11,10 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-// Shared memory key
-#define SHM_KEY 1234
-#define SEM_KEY "/my_semaphore"
 
-void createBlackboard();
-void drawDrone(int droneX, int droneY);
-void handleInput(int *sharedKey, sem_t *semaphore);
 
-int main() {
+int main()
+{
     initscr();
     timeout(0); // Set non-blocking getch
     curs_set(0); // Hide the cursor from the terminal
@@ -77,7 +75,9 @@ int main() {
 }
 
 
-void createBlackboard() {
+
+void createBlackboard()
+{
     // Clear the screen
     clear();
 
@@ -96,7 +96,8 @@ void createBlackboard() {
 }
 
 
-void drawDrone(int droneX, int droneY) {
+void drawDrone(int droneX, int droneY)
+{
 
     // Draw the center of the cross
     mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
@@ -105,13 +106,15 @@ void drawDrone(int droneX, int droneY) {
 }
 
 
-void handleInput(int *sharedKey, sem_t *semaphore) {
+void handleInput(int *sharedKey, sem_t *semaphore)
+{
     int ch;
 
     // Disable echoing
     noecho();
 
-    if ((ch = getch()) != ERR) {
+    if ((ch = getch()) != ERR)
+    {
         // Debugging: Commented out the print statement
         // printf("Pressed key: %d\n", ch);
 

@@ -13,7 +13,7 @@ clean:
 	rm -f $(BUILDDIR)/main
 	rm -f $(BUILDDIR)/server
 	rm -f $(BUILDDIR)/interface
-	rm -f $(BUILDDIR)/km
+	rm -f $(BUILDDIR)/key_manager
 	rm -f $(BUILDDIR)/drone
 
 
@@ -21,13 +21,13 @@ drone:
 	gcc -o $(BUILDDIR)/drone $(SRCDIR)/drone.c
 
 main:
-	gcc -o $(BUILDDIR)/main $(SRCDIR)/main.c
+	gcc -I include -o $(BUILDDIR)/main $(SRCDIR)/main.c
 
 server:
-	gcc -o $(BUILDDIR)/server $(SRCDIR)/server.c -pthread
+	gcc -I include -o $(BUILDDIR)/server $(SRCDIR)/server.c -pthread
 
 interface:
-	gcc -o $(BUILDDIR)/interface $(SRCDIR)/interface.c -lncurses -pthread
+	gcc  -I include -o $(BUILDDIR)/interface $(SRCDIR)/interface.c -lncurses -pthread
 
 km:
-	gcc -o $(BUILDDIR)/km $(SRCDIR)/km.c -pthread
+	gcc -I include -o $(BUILDDIR)/key_manager $(SRCDIR)/key_manager.c -pthread

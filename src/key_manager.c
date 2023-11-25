@@ -1,3 +1,5 @@
+#include "key_manager.h"
+#include "constants.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,45 +9,39 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-// Shared memory key
-#define SHM_KEY 1234
-#define SEM_KEY "/my_semaphore"
-
-// Special value to indicate no key pressed
-#define NO_KEY_PRESSED 0
-
-// Function prototypes
-char* determineAction(int pressedKey);
-void sendActionToDrone(char* action);
-void clearSharedMemory(int* sharedMemory);
 
 int main() {
+
     // Initialize shared memory
     int sharedKey;
     int *sharedMemory;
 
     // Try to access the existing shared memory segment
-    if ((sharedKey = shmget(SHM_KEY, sizeof(int), 0666)) < 0) {
+    if ((sharedKey = shmget(SHM_KEY, sizeof(int), 0666)) < 0)
+    {
         perror("shmget");
         exit(1);
     }
 
     // Attach the shared memory segment
-    if ((sharedMemory = shmat(sharedKey, NULL, 0)) == (int *)-1) {
+    if ((sharedMemory = shmat(sharedKey, NULL, 0)) == (int *)-1)
+    {
         perror("shmat");
         exit(1);
     }
 
     // Initialize semaphore
     sem_t *semaphore = sem_open(SEM_KEY, O_CREAT, 0666, 0);
-    if (semaphore == SEM_FAILED) {
+    if (semaphore == SEM_FAILED)
+    {
         perror("sem_open");
         exit(1);
     }
 
 
     // Main loop
-    while (1) {
+    while (1)
+    {
         // Wait for the semaphore to be signaled
         sem_wait(semaphore);
 
@@ -76,9 +72,11 @@ int main() {
 
 // Function implementations
 
-char* determineAction(int pressedKey) {
+char* determineAction(int pressedKey)
+{
     // Determine the action based on the pressed key
-    switch (toupper((char)pressedKey)) {
+    switch (toupper((char)pressedKey))
+    {
         case 'W':
             return "Up";
         case 'S':
@@ -108,13 +106,17 @@ char* determineAction(int pressedKey) {
     }
 }
 
-void sendActionToDrone(char* action) {
+
+
+void sendActionToDrone(char* action) 
+{
     // Here you can implement the code to send the action to the drone program
     // For now, let's print the action to the standard output
     printf("Action sent to drone: %s\n\n", action);
 }
 
-void clearSharedMemory(int* sharedMemory) {
+void clearSharedMemory(int* sharedMemory)
+{
     // Set the shared memory to a special value to indicate no key pressed
     *sharedMemory = NO_KEY_PRESSED;
 }

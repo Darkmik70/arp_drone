@@ -1,13 +1,8 @@
+#include "drone.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 
-#define MASS 1.0    // Mass of the object
-#define DAMPING 0.1 // Damping coefficient
-#define TIME_INTERVAL 0.1 // Time interval in seconds
-
-// Function prototype
-void eulerMethod(double *x, double *Vx, double forceX, double *y, double *Vy, double forceY);
 
 int main() {
     double x = 100.0;  // Initial position of X
