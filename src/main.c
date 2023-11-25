@@ -17,10 +17,15 @@ int main(int argc, char *argv[])
     p_num++;
 
     /* Keyboard manager */
-    char* km_args[] = {"konsole", "-e", "./build/km", NULL};
+    char* km_args[] = {"konsole", "-e", "./build/key_manager", NULL};
     create_child(km_args[0], km_args);
     p_num++;
 
+    
+    /* Drone */
+    char* drone_args[] = {"konsole", "-e", "./build/drone", NULL};
+    create_child(drone_args[0], drone_args);
+    p_num++;
 
     /* Wait for all children to close */
     for (int i = 0; i < p_num; i++)

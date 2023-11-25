@@ -17,7 +17,7 @@ int main() {
     int *sharedMemory;
 
     // Try to access the existing shared memory segment
-    if ((sharedKey = shmget(SHM_KEY, sizeof(int), 0666)) < 0)
+    if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), 0666)) < 0)
     {
         perror("shmget");
         exit(1);
@@ -31,7 +31,7 @@ int main() {
     }
 
     // Initialize semaphore
-    sem_t *semaphore = sem_open(SEM_KEY, O_CREAT, 0666, 0);
+    sem_t *semaphore = sem_open(SEM_KEY_1, O_CREAT, 0666, 0);
     if (semaphore == SEM_FAILED)
     {
         perror("sem_open");
@@ -58,7 +58,7 @@ int main() {
 
         // Clear the shared memory after processing the key
         clearSharedMemory(sharedMemory);
-        usleep(500000);
+        //usleep(500000);
     }
 
 
@@ -113,6 +113,7 @@ void sendActionToDrone(char* action)
     // Here you can implement the code to send the action to the drone program
     // For now, let's print the action to the standard output
     printf("Action sent to drone: %s\n\n", action);
+    fflush(stdout);
 }
 
 void clearSharedMemory(int* sharedMemory)

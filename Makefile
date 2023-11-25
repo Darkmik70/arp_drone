@@ -18,7 +18,7 @@ clean:
 
 
 drone:
-	gcc -o $(BUILDDIR)/drone $(SRCDIR)/drone.c
+	gcc -I include -o $(BUILDDIR)/drone $(SRCDIR)/drone.c -pthread
 
 main:
 	gcc -I include -o $(BUILDDIR)/main $(SRCDIR)/main.c

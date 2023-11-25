@@ -9,6 +9,11 @@
 #include <semaphore.h>
 #include <fcntl.h>
 
+// Semaphore for key presses
+sem_t *semaphore;
+// Semaphore for drone positions
+sem_t *semaphorePos;
+
 // Function prototypes
 // FIXME - why are these never used
 void createSharedMemory();

@@ -11,11 +11,14 @@
 #include <ctype.h>
 #include <fcntl.h>
 
+// Semaphore for drone positions
+sem_t *semaphore, *semaphorePos;
 
 //TODO: Add docs
 void createBlackboard();
 void drawDrone(int droneX, int droneY);
 void handleInput(int *sharedKey, sem_t *semaphore);
+void initializeDronePosition(int *sharedPos, int dronePosition[2]);
 
 
 #endif //INTERFACE_H
