@@ -5,58 +5,35 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#include <semaphore.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <semaphore.h>
 
 
 int main() 
 {
-    // Initialize shared memory 1: 'Key pressed'
     int sharedKey;
-    int *sharedMemory;
-
-    if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), IPC_CREAT | 0666)) < 0)
-    {
-        perror("shmget");
-        exit(1);
-    }
-
-    if ((sharedMemory = shmat(sharedKey, NULL, 0)) == (int *)-1)
-    {
-        perror("shmat");
-        exit(1);
-    }
-
-    sem_t *semaphore = sem_open(SEM_KEY_1, O_CREAT, 0666, 0);
-    if (semaphore == SEM_FAILED)
-    {
-        perror("sem_open");
-        exit(1);
-    }
+    void *ptr_key;        // Shared memory for Key pressing
+    void *ptr_action;        // Shared memory for Drone Position      
     
-    // Initialize shared memory 3: 'Action'
-    int sharedAct;
-    char *sharedAction;
+    int sharedAction;
+    sem_t *sem_key;       // Semaphore for key presses
+    sem_t *sem_action;       // Semaphore for drone positions
 
-    if ((sharedAct = shmget(SHM_KEY_3, 80*sizeof(char), IPC_CREAT | 0666)) < 0)
-    {
-        perror("shmget");
-        exit(1);
-    }
+    // Shared memory for KEY PRESSING
+    sharedKey = shm_open(SHM_KEY, O_RDWR, 0666);
+    ptr_key = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedKey, 0);
 
-    if ((sharedAction = shmat(sharedAct, NULL, 0)) == (char *)-1)
-    {
-        perror("shmat");
-        exit(1);
-    }
-    
-    sem_t *semaphore_act = sem_open(SEM_KEY_3, O_CREAT, 0666, 0);
-    if (semaphore_act == SEM_FAILED)
-    {
-        perror("sem_open");
-        exit(1);
-    }
+
+    // Shared memory for DRONE CONTROL - ACTION
+    sharedAction = shm_open(SHM_ACTION, O_RDWR, 0666);
+    ptr_action = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAction, 0);
+
+
+    sem_key = sem_open(SEM_KEY, 0);
+    sem_action = sem_open(SEM_ACTION, 0);
 
 
     // Main loop
@@ -65,29 +42,29 @@ int main()
         /*THIS SECTION IS FOR OBTAINING KEY INPUT*/
 
         // Wait for the semaphore to be signaled
-        sem_wait(semaphore);
+        sem_wait(sem_key);
         // Read the pressed key from shared memory
-        int pressedKey = *sharedMemory;
+        int pressedKey = *(int*)ptr_key; 
         //printf("Pressed key: %c\n", (char)pressedKey);
         printf("Pressed key: %c\n", (char)pressedKey);
         // Clear the shared memory after processing the key
-        clearSharedMemory(sharedMemory);
+        clearSharedMemory(ptr_key);
 
-        /*THUS SECTION IS FOR DRONE ACTION DECISION*/
-
+        /*THIS SECTION IS FOR DRONE ACTION DECISION*/
         // Determine the action based on the pressed key
-        char *action = determineAction(pressedKey, sharedAction);
+        char *action = determineAction(pressedKey, ptr_action);
         // Print the action taken
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
     }
 
-    // Detach the shared memory segment
-    shmdt(sharedMemory);
-    shmdt(sharedAction);
+    // close shared memories
+    close(sharedKey);
+    close(sharedAction);
+
     // Close and unlink the semaphore
-    sem_close(semaphore);
-    sem_close(semaphore_act);
+    sem_close(sem_key);
+    sem_close(sem_action);
 
     return 0;
 }
