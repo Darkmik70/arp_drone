@@ -70,6 +70,9 @@ int main()
 }
 
 
+
+
+
 // US Keyboard assumed
 char* determineAction(int pressedKey, char *sharedAction)
 {

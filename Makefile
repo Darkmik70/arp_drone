@@ -3,7 +3,7 @@ SRCDIR = src
 BUILDDIR = build
 
 # Default target
-all: km drone interface main #server
+all: km drone interface main server
 
 # Run project
 run:

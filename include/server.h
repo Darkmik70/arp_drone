@@ -15,4 +15,6 @@
 void createSharedMemory();
 void handleInput(int *sharedKey, sem_t *semaphore);
 
+void *create_shm(char *name);
+
 #endif // SERVER_H

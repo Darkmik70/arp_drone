@@ -16,35 +16,24 @@
 int main()
 {
     // Attach to shared memory for key presses
-    void *ptr_key;        // Shared memory for Key pressing
-    void *ptr_pos;        // Shared memory for Drone Position      
-    void *ptr_action;     // Shared memory ptr for actions
+    int *ptr_key;        // Shared memory for Key pressing
+    char *ptr_pos;        // Shared memory for Drone Position      
     sem_t *sem_key;       // Semaphore for key presses
     sem_t *sem_pos;       // Semaphore for drone positions
-    sem_t *sem_action;    // Semaphore for actions
 
     // Shared memory for KEY PRESSING
-    ptr_key = create_shm(SHM_KEY);
-    sem_key = sem_open(SEM_KEY, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    if (sem_key == SEM_FAILED) {
-        perror("sem_key failed");
-        exit(1);
-    }
+    int shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
+    ptr_key = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
+
+
     // Shared memory for DRONE POSITION
-    ptr_pos = create_shm(SHM_POS);
-    sem_pos = sem_open(SEM_POS, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    if (sem_pos == SEM_FAILED) {
-        perror("sem_pos failed");
-        exit(1);
-    }
-    // Shared memory for DRONE ACTION
-    ptr_action = create_shm(SHM_ACTION);
-    sem_action = sem_open(SEM_ACTION, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    if (sem_pos == SEM_FAILED) {
-        perror("sem_pos failed");
-        exit(1);
-    }    
-    
+    int shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
+    ptr_pos = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
+
+    sem_key = sem_open(SEM_KEY, 0);
+    sem_pos = sem_open(SEM_POS, 0);
+
+
     // Initial drone position (middle of the blackboard)
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
@@ -68,10 +57,10 @@ int main()
     while (1) {
         createBlackboard(); // Redraw blackboard in case the screen changed
         drawDrone(droneX, droneY);
-        handleInput((int*) ptr_key, sem_key);
+        handleInput(ptr_key, sem_key);
         /* Update drone position */
         //sem_wait(semaphorePos);
-        sscanf((char*) ptr_pos, "%d,%d", &droneX, &droneY); // Obtain the values of X,Y from shared memory
+        sscanf(ptr_pos, "%d,%d", &droneX, &droneY); // Obtain the values of X,Y from shared memory
         //sem_post(semaphorePos);
         usleep(20000);
         continue;
@@ -79,17 +68,15 @@ int main()
     
     endwin();
 
-    // Detach the shared memory segments
-    shmdt(SHM_KEY);
-    shmdt(SHM_POS);
-    
-    // Close and unlink the semaphores
+    // close shared memories
+    close(shm_key_fd);
+    close(shm_pos_fd);
+
+    // Close and unlink the semaphore
     sem_close(sem_key);
     sem_close(sem_pos);
-    sem_close(sem_action);
-    sem_unlink(SEM_KEY);
-    sem_unlink(SEM_POS);
-    sem_unlink(SEM_ACTION);
+
+
     return 0;
 }
 
@@ -147,27 +134,4 @@ void handleInput(int *sharedKey, sem_t *semaphore)
 
     // Clear the input buffer
     flushinp();
-}
-
-void *create_shm(char *name)
-{
-    const int SIZE = 4096;  // the size (in bytes) of shared memory object
-
-    int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-    if (shm_fd == -1)
-    {
-        perror("shm_open of shm_key");
-        exit(1);
-    }
-    /* configure the size of the shared memory object */
-    ftruncate(shm_fd, SIZE);
-
-    /* memory map the shared memory object */
-    void *shm_ptr = mmap(0, SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0); 
-    if (shm_ptr == MAP_FAILED)
-    {
-        perror("Map Failed");
-        exit(1);
-    }
-    return shm_ptr;
 }
