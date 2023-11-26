@@ -21,8 +21,6 @@ int main()
     // Initialize shared memory for key presses
     int sharedKey;
     int *sharedMemory;
-    // Semaphore for drone positions    
-    sem_t *semaphore, *semaphorePos;
 
 
     if ((sharedKey = shmget(SHM_KEY_1, sizeof(int), IPC_CREAT | 0666)) < 0) {
@@ -45,23 +43,23 @@ int main()
     
     // Initialize shared memory for drone positions
     int sharedPos;
-    int *sharedPosition;
+    char *sharedPosition;
 
-    if ((sharedPos = shmget(SHM_KEY_2, 2 * sizeof(int), IPC_CREAT | 0666)) < 0) {
+    if ((sharedPos = shmget(SHM_KEY_2, 80*sizeof(char), IPC_CREAT | 0666)) < 0) {
         perror("shmget");
-        exit(1);
+        //exit(1);
     }
 
-    if ((sharedPosition = shmat(sharedPos, NULL, 0)) == (int *)-1) {
+    if ((sharedPosition = shmat(sharedPos, NULL, 0)) == (char *)-1) {
         perror("shmat");
-        exit(1);
+        //exit(1);
     }
 
     // Initialize semaphore for drone positions
     sem_t *semaphorePos = sem_open(SEM_KEY_2, O_CREAT, 0666, 0);
     if (semaphorePos == SEM_FAILED) {
         perror("sem_open");
-        exit(1);
+        //exit(1);
     }
     
 
@@ -72,26 +70,20 @@ int main()
     int droneY = maxY / 2;
 
     // Write initial drone position in its corresponding shared memory
-    int dronePosition[2];
-    dronePosition[0] = droneX;
-    dronePosition[1] = droneY;
-    initializeDronePosition(sharedPosition, dronePosition);
+    sprintf(sharedPosition, "%d,%d", droneX, droneY);
 
     // Initialize color
     start_color();
     init_pair(1, COLOR_BLUE, COLOR_BLACK);
 
     while (1) {
-        printf("Entered while loop");
-        createBlackboard();
-        drawDrone(dronePosition[0], dronePosition[1]);
+        createBlackboard(); // Redraw blackboard in case the screen changed
+        drawDrone(droneX, droneY);
         handleInput(sharedMemory, semaphore);
-        //Update drone position
+        /* Update drone position */
         //sem_wait(semaphorePos);
-        dronePosition[0] = sharedPosition[0];
-        dronePosition[1] = sharedPosition[1];
+        sscanf(sharedPosition, "%d,%d", &droneX, &droneY); // Obtain the values of X,Y from shared memory
         //sem_post(semaphorePos);
-
         usleep(20000);
         continue;
     }
@@ -163,12 +155,4 @@ void handleInput(int *sharedKey, sem_t *semaphore)
 
     // Clear the input buffer
     flushinp();
-}
-
-void initializeDronePosition(int *sharedPos, int dronePosition[2]) {
-
-    //sem_wait(semaphorePos);
-    sharedPos[0] = dronePosition[0];
-    sharedPos[1] = dronePosition[1];
-    //sem_post(semaphorePos);
 }

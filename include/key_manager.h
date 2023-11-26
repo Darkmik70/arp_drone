@@ -17,14 +17,8 @@
  * @param pressedKey 
  * @returns Message with with pressed key
 */
-char* determineAction(int pressedKey);
+char* determineAction(int pressedKey, char *sharedAct);
 
-/**
- * Sends action to Drone
- * 
- * @param action translated action
-*/
-void sendActionToDrone(char* action);
 
 /**
  * Clears shared Memory 
