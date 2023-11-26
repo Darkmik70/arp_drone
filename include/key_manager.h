@@ -1,16 +1,6 @@
 #ifndef KEY_MANAGER_H    
 #define KEY_MANAGER_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <semaphore.h>
-#include <ctype.h>
-#include <fcntl.h>
-
-
 /**
  * Determine what action should be performed from user input
  * 
