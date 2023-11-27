@@ -70,15 +70,13 @@ int main()
 }
 
 
-
-
-
 // US Keyboard assumed
 char* determineAction(int pressedKey, char *sharedAction)
 {
     char key = toupper(pressedKey);
     int x; int y;
 
+    // Disclaimer: Y axis is inverted on tested terminal.
     if ( key == 'W' || key == 'I')
     {
         x = 0;    // Movement on the X axis.
@@ -137,8 +135,8 @@ char* determineAction(int pressedKey, char *sharedAction)
     }
     if ( key == 'S' || key == 'K')
     {
-        x = 0;    // Movement on the X axis.
-        y = 0;    // Movement on the Y axis.
+        x = 900;    // Special value interpreted by drone process
+        y = 0;    // Special value interpreted by drone process
         sprintf(sharedAction, "%d,%d", x, y);
         return "STOP";
     }
