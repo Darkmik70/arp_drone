@@ -5,7 +5,7 @@
 #define DAMPING 1 // Damping coefficient
 #define TIME_INTERVAL 0.1 // Time interval in seconds
 
-void eulerMethod(double *x, double *Vx, double forceX, double *y, double *Vy, double forceY);
+void eulerMethod(double *x, double *Vx, double forceX, double *y, double *Vy, double forceY, double *maxX, double *maxY);
 void stepMethod(int *x, int *y, int actionX, int actionY);
 
 #endif //DRONE_H

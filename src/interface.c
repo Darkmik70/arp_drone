@@ -34,102 +34,85 @@ int main()
     sem_pos = sem_open(SEM_POS, 0);
 
     
-    // Execution of NCURSES code
+    /* INITIALIZATION AND EXECUTION OF NCURSES CODE */
+
     initscr();
     timeout(0); // Set non-blocking getch
     curs_set(0); // Hide the cursor from the terminal
-    createBlackboard();
+    createWindow(); // Create the windows on the spawned 'Konsole' terminal.
+    // Initialize color for drawing drone
+    start_color();
+    init_pair(1, COLOR_BLUE, COLOR_BLACK);
 
-    // Initial drone position (middle of the blackboard)
+    // Set the initial drone position (middle of the window)
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
     int droneX = maxX / 2;
     int droneY = maxY / 2;
-    // Write initial drone position in its corresponding shared memory
-    sprintf(ptr_pos, "%d,%d", droneX, droneY);
 
-    // Initialize color
-    start_color();
-    init_pair(1, COLOR_BLUE, COLOR_BLACK);
+    // Write initial drone position in its corresponding shared memory
+    sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
+
 
     while (1) {
-        createBlackboard(); // Redraw blackboard in case the screen changed
+        createWindow(); // Redraw window in case the screen changed
         drawDrone(droneX, droneY);
         handleInput(ptr_key, sem_key);
         /* Update drone position */
         //sem_wait(semaphorePos);
-        sscanf(ptr_pos, "%d,%d", &droneX, &droneY); // Obtain the values of X,Y from shared memory
+        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY); // Obtain the values of X,Y from shared memory
         //sem_post(semaphorePos);
         usleep(20000);
         continue;
     }
     
-    endwin();
+    endwin(); // Clean up and finish up resources taken by ncurses
 
-    // close shared memories
+    // Close shared memories
     close(shm_key_fd);
     close(shm_pos_fd);
 
-    // Close and unlink the semaphore
+    // Close and unlink semaphores
     sem_close(sem_key);
     sem_close(sem_pos);
-
 
     return 0;
 }
 
 
-
-void createBlackboard()
+void createWindow()
 {
     // Clear the screen
     clear();
-
     // Get the dimensions of the terminal window
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
-
     // Draw a rectangular border using the box function
     box(stdscr, 0, 0);
-
-    // Print a title in the center of the blackboard
+    // Print a title in the top center part of the window
     mvprintw(0, (maxX - 11) / 2, "Drone Control");
-
     // Refresh the screen to apply changes
     refresh();
 }
 
 void drawDrone(int droneX, int droneY)
 {
-
-    // Draw the center of the cross
+    // Draw a plus sign to represent the drone
     mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
-
     refresh();
 }
 
 void handleInput(int *sharedKey, sem_t *semaphore)
 {
     int ch;
-
-    // Disable echoing
-    noecho();
-
+    noecho(); // Disable echoing: no key character will be shown when pressed.
     if ((ch = getch()) != ERR)
     {
-        // Debugging: Commented out the print statement
-        // printf("Pressed key: %d\n", ch);
-
         // Store the pressed key in shared memory
         *sharedKey = ch;
-
         // Signal the semaphore to notify the server
         sem_post(semaphore);
     }
-
-    // Enable echoing
-    echo();
-
-    // Clear the input buffer
-    flushinp();
+    echo(); // Re-enable echoing
+    flushinp(); // Clear the input buffer
 }

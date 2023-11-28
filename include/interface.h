@@ -13,7 +13,7 @@
 
 
 //TODO: Add docs
-void createBlackboard();
+void createWindow();
 void drawDrone(int droneX, int droneY);
 void handleInput(int *sharedKey, sem_t *semaphore);
 

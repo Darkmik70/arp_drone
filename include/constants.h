@@ -1,6 +1,8 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#define FLOAT_TOLERANCE 0.0044
+
 // Shared memory key for key presses
 #define SHM_KEY "/shared_keyboard"
 #define SHM_KEY_1 1
