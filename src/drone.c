@@ -134,13 +134,13 @@ void eulerMethod(double *x, double *Vx, double forceX, double *y, double *Vy, do
     *Vx = *Vx + accelerationX * TIME_INTERVAL;
     *x = *x + (*Vx) * TIME_INTERVAL;
     if (*x < 0){*x = 0;}
-    if (*x > *maxX){*x = *maxX;}
+    if (*x > *maxX){*x = *maxX-1;}
 
     // Update velocity and position for Y using Euler's method
     *Vy = *Vy + accelerationY * TIME_INTERVAL;
     *y = *y + (*Vy) * TIME_INTERVAL;
     if (*y < 0){*y = 0;}
-    if (*y > *maxY){*y = *maxY;}
+    if (*y > *maxY){*y = *maxY-1;}
 }
 
 // Moving the drone step by step as initial development

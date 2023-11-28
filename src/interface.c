@@ -39,7 +39,6 @@ int main()
     initscr();
     timeout(0); // Set non-blocking getch
     curs_set(0); // Hide the cursor from the terminal
-    createWindow(); // Create the windows on the spawned 'Konsole' terminal.
     // Initialize color for drawing drone
     start_color();
     init_pair(1, COLOR_BLUE, COLOR_BLACK);
@@ -55,13 +54,16 @@ int main()
 
 
     while (1) {
-        createWindow(); // Redraw window in case the screen changed
+        // Obtain the positionvalues stored in shared memory
+        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);
+        // Create the window
+        // Rewrite the maximum values if necessary
+        if (createWindow(maxX, maxY) == 1){
+            getmaxyx(stdscr, maxY, maxX);
+            sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
+        }
         drawDrone(droneX, droneY);
         handleInput(ptr_key, sem_key);
-        /* Update drone position */
-        //sem_wait(semaphorePos);
-        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY); // Obtain the values of X,Y from shared memory
-        //sem_post(semaphorePos);
         usleep(20000);
         continue;
     }
@@ -80,19 +82,20 @@ int main()
 }
 
 
-void createWindow()
-{
+int createWindow(int maxX, int maxY){
     // Clear the screen
     clear();
     // Get the dimensions of the terminal window
-    int maxY, maxX;
-    getmaxyx(stdscr, maxY, maxX);
+    int new_maxY, new_maxX;
+    getmaxyx(stdscr, new_maxY, new_maxX);
     // Draw a rectangular border using the box function
     box(stdscr, 0, 0);
     // Print a title in the top center part of the window
-    mvprintw(0, (maxX - 11) / 2, "Drone Control");
+    mvprintw(0, (new_maxX - 11) / 2, "Drone Control");
     // Refresh the screen to apply changes
     refresh();
+    if(new_maxX != maxX || new_maxY != maxY){return 1;}
+    else{return 0;}
 }
 
 void drawDrone(int droneX, int droneY)
