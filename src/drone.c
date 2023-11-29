@@ -1,36 +1,65 @@
 #include "drone.h"
 #include "constants.h"
-#include <stdio.h>
+#include "util.h"
+
+#include <stdio.h>       
 #include <stdlib.h>
+#include <stdbool.h>
+#include <ctype.h>
+#include <math.h>
+
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
 #include <semaphore.h>
-#include <ctype.h>
 #include <fcntl.h>
-#include <stdbool.h>
-#include <math.h>
+#include <signal.h>
 
 
-int main() {
+/* Global variables */
+// Initialize shared memory for drone positions
+int sharedPos;
+char *sharedPosition;
+// Initialize shared memory for drone actions.
+int sharedAct;
+char *sharedAction;
+sem_t *semaphore_act;
 
-    // Initialize shared memory for drone positions
-    int sharedPos;
-    char *sharedPosition;
-    // Initialize shared memory for drone actions.
-    int sharedAct;
-    char *sharedAction;
+
+void signal_handler(int signo)
+{
+    printf("Received signal number: %d \n", signo);
+    if( signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(semaphore_act);
+
+        printf("Succesfully closed all semaphores\n");
+        exit(1);
+    }
+}
+
+
+int main() 
+{
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigaction(SIGINT, &sa, NULL);
+
+    publish_pid_to_wd(DRONE_SYM, getpid());
+
 
     // Shared memory for DRONE POSITION
     sharedPos = shm_open(SHM_POS, O_RDWR, 0666);
-    sharedPosition = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedPos, 0);
+    sharedPosition = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedPos, 0);
 
     // Shared memory for DRONE CONTROL - ACTION
     sharedAct = shm_open(SHM_ACTION, O_RDWR, 0666);
-    sharedAction = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAct, 0);
+    sharedAction = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAct, 0);
 
-    sem_t *semaphore_act = sem_open(SHM_ACTION, O_CREAT, 0666, 0);
+    semaphore_act = sem_open(SHM_ACTION, O_CREAT, 0666, 0);
     if (semaphore_act == SEM_FAILED)
     {
         perror("sem_open");
