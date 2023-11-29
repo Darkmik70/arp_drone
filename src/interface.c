@@ -1,5 +1,7 @@
 #include "interface.h"
 #include "constants.h"
+#include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,23 +14,48 @@
 #include <ctype.h>
 #include <fcntl.h>
 
+#include <signal.h>
+
+/* Global variables */
+// Attach to shared memory for key presses
+int *ptr_key;   // Shared memory for Key pressing
+char *ptr_pos;  // Shared memory for Drone Position
+sem_t *sem_key; // Semaphore for key presses
+sem_t *sem_pos; // Semaphore for drone positions
+
+
+void signal_handler(int signo)
+{
+    printf(" Received signal number: %d \n", signo);
+    if( signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_key);
+        sem_close(sem_pos);
+
+        printf("Succesfully closed all semaphores\n");
+        sleep(10);
+        exit(1);
+    }
+}
 
 int main()
 {
-    // Attach to shared memory for key presses
-    int *ptr_key;        // Shared memory for Key pressing
-    char *ptr_pos;        // Shared memory for Drone Position      
-    sem_t *sem_key;       // Semaphore for key presses
-    sem_t *sem_pos;       // Semaphore for drone positions
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigaction (SIGINT, &sa, NULL);    
+
+    publish_pid_to_wd(WINDOW_SYM, getpid());
 
     // Shared memory for KEY PRESSING
     int shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
-    ptr_key = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
+    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
 
 
     // Shared memory for DRONE POSITION
     int shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
-    ptr_pos = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
+    ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
 
     sem_key = sem_open(SEM_KEY, 0);
     sem_pos = sem_open(SEM_POS, 0);

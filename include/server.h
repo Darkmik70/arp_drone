@@ -17,4 +17,9 @@ void handleInput(int *sharedKey, sem_t *semaphore);
 
 void *create_shm(char *name);
 
+/**
+ * Close, unlink all semaphores and shared memory segments;
+*/
+void clean_up();
+
 #endif // SERVER_H
