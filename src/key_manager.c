@@ -1,5 +1,7 @@
 #include "key_manager.h"
 #include "constants.h"
+#include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,27 +12,59 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
+
+
+// GLOBAL VARIABLES
+int sharedKey;
+int sharedAction;
+void *ptr_key;              // Shared memory for Key pressing
+void *ptr_action;           // Shared memory for Drone Position      
+sem_t *sem_key;             // Semaphore for key presses
+sem_t *sem_action;          // Semaphore for drone positions
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    // printf("Received signal number: %d \n", signo);
+    if  (signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_key);
+        sem_close(sem_action);
+
+        printf("Succesfully closed all semaphores\n");
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
+}
 
 
 int main() 
 {
-    // Shared memory variables
-    void *ptr_key;       
-    void *ptr_action;            
-    int sharedKey;
-    int sharedAction;
+    struct sigaction sa;
+    sa.sa_sigaction = signal_handler; 
+    sa.sa_flags = SA_SIGINFO;
+    sigaction (SIGINT, &sa, NULL);
+    sigaction (SIGUSR1, &sa, NULL);    
 
-    // Semaphores
-    sem_t *sem_key;  
-    sem_t *sem_action;       
+    
+    publish_pid_to_wd(KM_SYM, getpid());
 
     // Initialize shared memory for KEY PRESSING
     sharedKey = shm_open(SHM_KEY, O_RDWR, 0666);
-    ptr_key = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedKey, 0);
+    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedKey, 0);
 
     // Initialize shared memory for DRONE CONTROL - ACTION
     sharedAction = shm_open(SHM_ACTION, O_RDWR, 0666);
-    ptr_action = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAction, 0);
+    ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAction, 0);
 
     // Initialize semaphores
     sem_key = sem_open(SEM_KEY, 0);

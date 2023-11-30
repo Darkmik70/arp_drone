@@ -1,37 +1,74 @@
 #include "drone.h"
 #include "constants.h"
-#include <stdio.h>
+#include "util.h"
+
+#include <stdio.h>       
 #include <stdlib.h>
+#include <stdbool.h>
+#include <ctype.h>
+#include <math.h>
+
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
 #include <semaphore.h>
-#include <ctype.h>
 #include <fcntl.h>
-#include <stdbool.h>
-#include <math.h>
+#include <signal.h>
+
+/* Global variables */
+// Initialize shared memory for drone positions
+int sharedPos;
+char *sharedPosition;
+// Initialize shared memory for drone actions.
+int sharedAct;
+char *sharedAction;
+// Initialize semaphores
+sem_t *sem_pos;
+sem_t *sem_action;
 
 
-int main() {
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    printf("Received signal number: %d \n", signo);
+    if( signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_action);
 
-    // Initialize shared memory for drone positions
-    int sharedPos;
-    char *sharedPosition;
-    // Initialize shared memory for drone actions.
-    int sharedAct;
-    char *sharedAction;
-    // Initialize semaphores
-    sem_t *sem_pos;
-    sem_t *sem_action;
+        printf("Succesfully closed all semaphores\n");
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
+}
+
+int main() 
+{
+    struct sigaction sa;
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction (SIGUSR1, &sa, NULL);    
+
+
+    publish_pid_to_wd(DRONE_SYM, getpid());
+
 
     // Shared memory for DRONE POSITION
     sharedPos = shm_open(SHM_POS, O_RDWR, 0666);
-    sharedPosition = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedPos, 0);
+    sharedPosition = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedPos, 0);
 
     // Shared memory for DRONE CONTROL - ACTION
     sharedAct = shm_open(SHM_ACTION, O_RDWR, 0666);
-    sharedAction = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAct, 0);
+    sharedAction = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAct, 0);
 
     sem_pos = sem_open(SEM_POS, 0);
     sem_action = sem_open(SEM_ACTION, 0);

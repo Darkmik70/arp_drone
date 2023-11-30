@@ -2,8 +2,12 @@
 SRCDIR = src
 BUILDDIR = build
 
+# UTILOBJ
+UTIL_OBJ = build/util.o
+
+
 # Default target
-all: km drone interface main server
+all:  util wd server km drone interface main
 
 # Run project
 run:
@@ -15,19 +19,21 @@ clean:
 	rm -f $(BUILDDIR)/interface
 	rm -f $(BUILDDIR)/key_manager
 	rm -f $(BUILDDIR)/drone
+	rm -f $(BUILDDIR)/watchdog
+	rm -f $(BUILDDIR)/util
 
 
 drone:
-	gcc -I include -o $(BUILDDIR)/drone $(SRCDIR)/drone.c -pthread -lm
-
+	gcc -I include -o $(BUILDDIR)/drone $(UTIL_OBJ) $(SRCDIR)/drone.c -pthread -lm
 main:
-	gcc -I include -o $(BUILDDIR)/main $(SRCDIR)/main.c
-
+	gcc -I include -o $(BUILDDIR)/main $(UTIL_OBJ) $(SRCDIR)/main.c
 server:
-	gcc -I include -o $(BUILDDIR)/server $(SRCDIR)/server.c -pthread
-
+	gcc -I include -o $(BUILDDIR)/server $(UTIL_OBJ) $(SRCDIR)/server.c -pthread
 interface:
-	gcc -I include -o $(BUILDDIR)/interface $(SRCDIR)/interface.c -lncurses -pthread
-
+	gcc -I include -o $(BUILDDIR)/interface $(UTIL_OBJ) $(SRCDIR)/interface.c -lncurses -pthread
 km:
-	gcc -I include -o $(BUILDDIR)/key_manager $(SRCDIR)/key_manager.c -pthread
+	gcc -I include -o $(BUILDDIR)/key_manager $(UTIL_OBJ) $(SRCDIR)/key_manager.c -pthread
+wd:
+	gcc -I include -o $(BUILDDIR)/watchdog $(UTIL_OBJ) $(SRCDIR)/watchdog.c
+util:
+	gcc -I include -o $(BUILDDIR)/util.o  -c $(SRCDIR)/util.c
