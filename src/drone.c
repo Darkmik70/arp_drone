@@ -16,21 +16,19 @@
 #include <fcntl.h>
 #include <signal.h>
 
-
-int main() {
-
-    // Initialize shared memory for drone positions
-    int sharedPos;
-    char *sharedPosition;
-    // Initialize shared memory for drone actions.
-    int sharedAct;
-    char *sharedAction;
-    // Initialize semaphores
-    sem_t *sem_pos;
-    sem_t *sem_action;
+/* Global variables */
+// Initialize shared memory for drone positions
+int sharedPos;
+char *sharedPosition;
+// Initialize shared memory for drone actions.
+int sharedAct;
+char *sharedAction;
+// Initialize semaphores
+sem_t *sem_pos;
+sem_t *sem_action;
 
 
-void signal_handler(int signo)
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
 {
     printf("Received signal number: %d \n", signo);
     if( signo == SIGINT)
@@ -42,15 +40,24 @@ void signal_handler(int signo)
         printf("Succesfully closed all semaphores\n");
         exit(1);
     }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
-
-
 
 int main() 
 {
     struct sigaction sa;
-    sa.sa_handler = signal_handler;
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sa, NULL);
+    sigaction (SIGUSR1, &sa, NULL);    
+
 
     publish_pid_to_wd(DRONE_SYM, getpid());
 

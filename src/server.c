@@ -26,25 +26,13 @@ sem_t *sem_action;                      // Semaphore for actions
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
 
-void signal_handler(int signo)
-{
-    printf("Received signal number: %d \n", signo);
-    if (signo == SIGINT)
-    {
-        printf("Caught SIGINT\n");
-        clean_up();
-        sleep(5);
-        exit(1);
-    }
-}
-
-
-
 int main() 
 {   
     struct sigaction sa;
-    sa.sa_handler = signal_handler; 
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);    
+    sigaction (SIGUSR1, &sa, NULL);    
 
     // Shared memory and semaphores for WATCHDOG
     ptr_wd = create_shm(SHM_WD);
@@ -92,13 +80,33 @@ int main()
     // Main loop
     while (1)
     {
-        usleep(50000);  
+        // Busy sleep friend
+        usleep(500000);
     }
 
-    
     // Close and unlink the semaphores
     clean_up();
     return 0;
+}
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    // printf("Received signal number: %d \n", signo);
+    if (signo == SIGINT)
+    {
+        printf("Caught SIGINT\n");
+        clean_up();
+        sleep(5);
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
 
 
@@ -112,7 +120,8 @@ void *create_shm(char *name)
     }
     /* configure the size of the shared memory object */
     ftruncate(shm_fd, SIZE_SHM);
-    /* memory map the shared memory object */
+
+    /* memory map the shared memory segment */
     void *shm_ptr = mmap(0, SIZE_SHM, PROT_WRITE | PROT_READ, MAP_SHARED, shm_fd, 0); 
     if (shm_ptr == MAP_FAILED)
     {

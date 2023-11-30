@@ -23,10 +23,10 @@ void *ptr_action;           // Shared memory for Drone Position
 sem_t *sem_key;             // Semaphore for key presses
 sem_t *sem_action;          // Semaphore for drone positions
 
-void signal_handler(int signo)
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
 {
-    printf("Received signal number: %d \n", signo);
-    if( signo == SIGINT)
+    // printf("Received signal number: %d \n", signo);
+    if  (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
         // close all semaphores
@@ -36,14 +36,25 @@ void signal_handler(int signo)
         printf("Succesfully closed all semaphores\n");
         exit(1);
     }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
 
 
 int main() 
 {
     struct sigaction sa;
-    sa.sa_handler = signal_handler; 
-    sigaction (SIGINT, &sa, NULL);   
+    sa.sa_sigaction = signal_handler; 
+    sa.sa_flags = SA_SIGINFO;
+    sigaction (SIGINT, &sa, NULL);
+    sigaction (SIGUSR1, &sa, NULL);    
+
     
     publish_pid_to_wd(KM_SYM, getpid());
 

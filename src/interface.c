@@ -24,9 +24,9 @@ sem_t *sem_key; // Semaphore for key presses
 sem_t *sem_pos; // Semaphore for drone positions
 
 
-void signal_handler(int signo)
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
 {
-    printf(" Received signal number: %d \n", signo);
+    // printf(" Received signal number: %d \n", signo);
     if( signo == SIGINT)
     {
         printf("Caught SIGINT \n");
@@ -38,13 +38,25 @@ void signal_handler(int signo)
         sleep(10);
         exit(1);
     }
+    if (signo == SIGUSR1)
+    {
+        //TODO REFRESH SCREEN
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
 
 int main()
 {
     struct sigaction sa;
-    sa.sa_handler = signal_handler;
-    sigaction (SIGINT, &sa, NULL);    
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction (SIGINT, &sa, NULL);  
+    sigaction (SIGUSR1, &sa, NULL);    
+  
 
     publish_pid_to_wd(WINDOW_SYM, getpid());
 
@@ -65,8 +77,10 @@ int main()
     initscr(); // Initialize
     timeout(0); // Set non-blocking getch
     curs_set(0); // Hide the cursor from the terminal
-    start_color(); // Initialize color for drawing drone
-    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone will be of color blue
+    // Initialize color for drawing drone
+    start_color();
+    init_pair(1, COLOR_BLUE, COLOR_BLACK);
+    noecho(); // Disable echoing: no key character will be shown when pressed.
 
     // Set the initial drone position (middle of the window)
     int maxY, maxX;
@@ -132,12 +146,11 @@ void drawDrone(int droneX, int droneY)
 void handleInput(int *sharedKey, sem_t *semaphore)
 {
     int ch;
-    noecho(); // Disable echoing: no key character will be shown when pressed.
     if ((ch = getch()) != ERR)
     {
         *sharedKey = ch;    // Store the pressed key in shared memory
         sem_post(semaphore);    // Signal the semaphore to process key_manager.c
     }
-    echo(); // Re-enable echoing
+    // echo(); // Re-enable echoing
     flushinp(); // Clear the input buffer
 }

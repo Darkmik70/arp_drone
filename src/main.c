@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     pid_t drone_pid;
     pid_t wd_pid;
 
-    const int delay = 100000; // Time delay between next spawns
+    int delay = 100000; // Time delay between next spawns
 
     int p_num = 0;  // number of processes
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     char* server_args[] = {"konsole", "-e", "./build/server", NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
-    usleep(delay);
+    usleep(delay*10); //little bit more time for server
 
     /* Keyboard manager */
     char* km_args[] = {"konsole", "-e", "./build/key_manager", NULL};
@@ -65,7 +65,6 @@ int main(int argc, char *argv[])
     printf("All child processes closed, closing main process...\n");
     return 0;
 }
-
 
 
 int create_child(const char *program, char **arg_list)

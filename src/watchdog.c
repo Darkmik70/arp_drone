@@ -13,30 +13,53 @@
 #include <unistd.h>
 #include <semaphore.h>
 
-// GLOBAL VARIABLES
+/* Global variables */
 pid_t server_pid;
 pid_t window_pid;
 pid_t km_pid;
 pid_t drone_pid;
 pid_t wd_pid;
 
+// Variables for health monitoring
+int cnt_server;
+int cnt_window;
+int cnt_km;
+int cnt_drone;
 
 
-void signal_handler(int signo) {
-    // Handle the signal, e.g., print a message
-    printf("Received signal number: %d\n", signo);
 
+void signal_handler(int signo, siginfo_t *siginfo, void *context)
+{
+    printf("Received signal number: %d\n from ", signo);
     if (signo == SIGINT)
     {
-        // Send sigint to all of the processess;
-        kill(window_pid, SIGINT);
-        kill(km_pid, SIGINT);
-        kill(drone_pid, SIGINT);
-        kill(server_pid, SIGINT);
-
-        printf("WD sent SIGINT to all processes, exiting...\n");
-        exit(1);
+        send_sigint_to_all();
     } 
+    if (signo == SIGUSR2)
+    {
+        // CHECK THE PID OF SENDER AND SET COUNTERS TO ZERO
+        if (siginfo->si_pid == server_pid)
+        {
+            printf("Server has sent SIGUSR2 \n\n");
+            cnt_server = 0;
+        }
+        if (siginfo->si_pid == window_pid)
+        {
+            printf("Window has sent SIGUSR2 \n\n");
+            cnt_window = 0;
+        }
+        if (siginfo->si_pid == km_pid)
+        {
+            printf("Keymanager has sent SIGUSR2 \n\n");
+            cnt_km = 0;
+        }
+        if (siginfo->si_pid == drone_pid)
+        {
+            printf("Drone has sent SIGUSR2 \n\n");
+            cnt_drone = 0;
+        }
+    }
+
  }
 
 
@@ -44,8 +67,10 @@ int main(int argc, char* argv[])
 {
     /* Sigaction */
     struct sigaction sa;
-    sa.sa_handler = signal_handler;
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sa, NULL);    
+    sigaction(SIGUSR2, &sa, NULL);    
 
     /* Get PIDs of processes*/
     server_pid = 0;
@@ -57,26 +82,42 @@ int main(int argc, char* argv[])
 
     // Get pid of the processes
     get_pids(&server_pid, &window_pid, &km_pid, &drone_pid);
-    printf("The PID of this process is: %d\n", wd_pid);
+    printf("WD PID IS: %d\n", wd_pid);
 
-    printf("Those are obtained pids: \n SERVER : %i \n WINDOW : %i \n KM : %i \n DRONE : %i \n", server_pid, window_pid, km_pid, drone_pid);
+    /*TODO: remove hardcoded values in WATCHDOG */
+    cnt_server = 0;
+    cnt_window = 0;
+    cnt_km = 0;
+    cnt_drone = 0;
 
-    /*TODO user signal */
-
+    int threshold = 5;
     while(1)
     {
-        /* Monitor health of all of the processes*/
-        // kill(server_pid, SIGUSR1);
+        // increment counter
+        cnt_server++;
+        cnt_window++;
+        cnt_km++;
+        cnt_drone++;
 
-        // kill(window_pid, SIGUSR1);
-        // kill(km_pid, SIGUSR1);
-        // kill(drone_pid, SIGUSR1);
+        /* Monitor health of all of the processes */
+        kill(server_pid,SIGUSR1);
+        usleep(500);
+        kill(window_pid, SIGUSR1);
+        usleep(500);
+        kill(km_pid, SIGUSR1);
+        usleep(500);
+        kill(drone_pid, SIGUSR1);
+        usleep(500);
 
-        usleep(1000000);
 
+        // If any of the processess does not respond in given timeframe, close them all
+        if (cnt_server > threshold || cnt_window > threshold || cnt_km > threshold || cnt_drone > threshold)
+        {
+            send_sigint_to_all();
+        }
+        usleep(100000);
     }
 
-    // clean_up_before_exit();
     return 0;
 }
 
@@ -136,8 +177,7 @@ int get_pids(pid_t *server_pid, pid_t *window_pid, pid_t *km_pid, pid_t *drone_p
     {
         // Got all pids
         printf("Those are obtained pids: \n");
-        printf(" SERVER : %i \n WINDOW : %i \n KM : %i \n DRONE : %i \n", 
-            *server_pid, *window_pid, *km_pid, *drone_pid);
+        printf(" SERVER : %i \n WINDOW : %i \n KM : %i \n DRONE : %i \n", *server_pid, *window_pid, *km_pid, *drone_pid);
     }
     else
     {
@@ -155,4 +195,13 @@ int get_pids(pid_t *server_pid, pid_t *window_pid, pid_t *km_pid, pid_t *drone_p
         //TODO send signal to server to unlink wd stuff
 }
 
+void send_sigint_to_all()
+{
+        kill(window_pid, SIGINT);
+        kill(km_pid, SIGINT);
+        kill(drone_pid, SIGINT);
+        kill(server_pid, SIGINT);
+        printf("WD sent SIGINT to all processes, exiting...\n");
+        exit(1);
+}
 
