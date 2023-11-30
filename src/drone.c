@@ -21,6 +21,9 @@ int main() {
     // Initialize shared memory for drone actions.
     int sharedAct;
     char *sharedAction;
+    // Initialize semaphores
+    sem_t *sem_pos;
+    sem_t *sem_action;
 
     // Shared memory for DRONE POSITION
     sharedPos = shm_open(SHM_POS, O_RDWR, 0666);
@@ -30,15 +33,11 @@ int main() {
     sharedAct = shm_open(SHM_ACTION, O_RDWR, 0666);
     sharedAction = mmap(0, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAct, 0);
 
-    sem_t *semaphore_act = sem_open(SHM_ACTION, O_CREAT, 0666, 0);
-    if (semaphore_act == SEM_FAILED)
-    {
-        perror("sem_open");
-        exit(1);
-    }
+    sem_pos = sem_open(SEM_POS, 0);
+    sem_action = sem_open(SEM_ACTION, 0);
 
     // Variable declaration segment
-    usleep(100000); // To let the interface.c process write the initial positions first.
+    usleep(100000); // To let the interface.c process execute first write the initial positions.
     int x; int y;
     int maxX; int maxY;
     int actionX; int actionY;
@@ -52,8 +51,8 @@ int main() {
     double Vy = 0.0;    // Initial velocity of Y
     double forceY = 0.0; // Initial force in the Y direction
 
-    bool euler_method = true; // Obtain from keyboard manager
-    // Simulate the motion in an infinite loop using Euler's method
+    bool euler_method = true; // For testing purposes.
+
     while (1) {
         int xi; int yi;
         sscanf(sharedPosition, "%d,%d,%d,%d", &xi, &yi, &maxX, &maxY);
@@ -94,6 +93,7 @@ int main() {
             int xf = (int)round(pos_x);
             int yf = (int)round(pos_y);
             sprintf(sharedPosition, "%d,%d,%d,%d", xf, yf, maxX, maxY);
+            sem_post(sem_pos);
         }
 
         /* DRONE CONTROL WITH THE STEP METHOD*/
@@ -111,9 +111,9 @@ int main() {
                 sprintf(sharedAction, "%d,%d", 0, 0); // Zeros written on action memory
                 // Write new drone position to shared memory
                 sprintf(sharedPosition, "%d,%d,%d,%d", x, y, maxX, maxY);
+                sem_post(sem_pos);
             }
         }
-
         // Introduce a delay on the loop to simulate real-time intervals.
         usleep(TIME_INTERVAL * 1e6);
     }

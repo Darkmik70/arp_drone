@@ -20,12 +20,4 @@
 char* determineAction(int pressedKey, char *sharedAct);
 
 
-/**
- * Clears shared Memory 
- * 
- * @param sharedMemory memory to be cleaned
-*/
-void clearSharedMemory(int* sharedMemory);
-
-
 #endif // KEY_MANAGER_H
