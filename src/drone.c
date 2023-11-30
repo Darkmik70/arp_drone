@@ -37,7 +37,7 @@ int main() {
     sem_action = sem_open(SEM_ACTION, 0);
 
     // Variable declaration segment
-    usleep(100000); // To let the interface.c process write the initial positions first.
+    usleep(100000); // To let the interface.c process execute first write the initial positions.
     int x; int y;
     int maxX; int maxY;
     int actionX; int actionY;
@@ -51,8 +51,8 @@ int main() {
     double Vy = 0.0;    // Initial velocity of Y
     double forceY = 0.0; // Initial force in the Y direction
 
-    bool euler_method = true; // Obtain from keyboard manager
-    // Simulate the motion in an infinite loop using Euler's method
+    bool euler_method = true; // For testing purposes.
+
     while (1) {
         int xi; int yi;
         sscanf(sharedPosition, "%d,%d,%d,%d", &xi, &yi, &maxX, &maxY);
@@ -114,7 +114,6 @@ int main() {
                 sem_post(sem_pos);
             }
         }
-
         // Introduce a delay on the loop to simulate real-time intervals.
         usleep(TIME_INTERVAL * 1e6);
     }
