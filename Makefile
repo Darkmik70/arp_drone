@@ -25,19 +25,15 @@ clean:
 
 drone:
 	gcc -I include -o $(BUILDDIR)/drone $(UTIL_OBJ) $(SRCDIR)/drone.c -pthread -lm
-
 main:
 	gcc -I include -o $(BUILDDIR)/main $(UTIL_OBJ) $(SRCDIR)/main.c
-
 server:
 	gcc -I include -o $(BUILDDIR)/server $(UTIL_OBJ) $(SRCDIR)/server.c -pthread
-
 interface:
 	gcc -I include -o $(BUILDDIR)/interface $(UTIL_OBJ) $(SRCDIR)/interface.c -lncurses -pthread
-
 km:
 	gcc -I include -o $(BUILDDIR)/key_manager $(UTIL_OBJ) $(SRCDIR)/key_manager.c -pthread
 wd:
 	gcc -I include -o $(BUILDDIR)/watchdog $(UTIL_OBJ) $(SRCDIR)/watchdog.c
 util:
-	gcc -I include -c $(SRCDIR)/util.c -o $(BUILDDIR)/util.o
+	gcc -I include -o $(BUILDDIR)/util.o  -c $(SRCDIR)/util.c
