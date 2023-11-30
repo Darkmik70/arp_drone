@@ -41,19 +41,15 @@ int main()
     {
         /*THIS SECTION IS FOR OBTAINING KEY INPUT*/
 
-        // Wait for the semaphore to be signaled
-        sem_wait(sem_key);
-        // Read the pressed key from shared memory
-        int pressedKey = *(int*)ptr_key; 
-        //printf("Pressed key: %c\n", (char)pressedKey);
+        sem_wait(sem_key);  // Wait for the semaphore to be signaled
+        int pressedKey = *(int*)ptr_key;    // Read the pressed key from shared memory 
         printf("Pressed key: %c\n", (char)pressedKey);
-        // Clear the shared memory after processing the key
-        clearSharedMemory(ptr_key);
+        fflush(stdout);
+        clearSharedMemory(ptr_key); // Clear the shared memory after processing the key
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
-        // Determine the action based on the pressed key
+
         char *action = determineAction(pressedKey, ptr_action);
-        // Print the action taken
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
     }
@@ -96,14 +92,14 @@ char* determineAction(int pressedKey, char *sharedAction)
         x = -1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(sharedAction, "%d,%d", x, y);
-        return "RIGHT";
+        return "LEFT";
     }
     if ( key == 'D' || key == 'L')
     {
         x = 1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(sharedAction, "%d,%d", x, y);
-        return "LEFT";
+        return "RIGHT";
     }
     if ( key == 'Q' || key == 'U')
     {

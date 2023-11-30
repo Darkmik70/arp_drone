@@ -54,7 +54,8 @@ int main()
 
 
     while (1) {
-        // Obtain the positionvalues stored in shared memory
+        // Obtain the position values stored in shared memory
+        sem_wait(sem_pos);
         sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);
         // Create the window
         // Rewrite the maximum values if necessary
@@ -64,7 +65,7 @@ int main()
         }
         drawDrone(droneX, droneY);
         handleInput(ptr_key, sem_key);
-        usleep(20000);
+        //usleep(20000);
         continue;
     }
     
@@ -73,7 +74,6 @@ int main()
     // Close shared memories
     close(shm_key_fd);
     close(shm_pos_fd);
-
     // Close and unlink semaphores
     sem_close(sem_key);
     sem_close(sem_pos);
@@ -111,10 +111,8 @@ void handleInput(int *sharedKey, sem_t *semaphore)
     noecho(); // Disable echoing: no key character will be shown when pressed.
     if ((ch = getch()) != ERR)
     {
-        // Store the pressed key in shared memory
-        *sharedKey = ch;
-        // Signal the semaphore to notify the server
-        sem_post(semaphore);
+        *sharedKey = ch;    // Store the pressed key in shared memory
+        sem_post(semaphore);    // Signal the semaphore to process key_manager.c
     }
     echo(); // Re-enable echoing
     flushinp(); // Clear the input buffer
