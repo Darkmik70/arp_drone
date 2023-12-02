@@ -1,13 +1,17 @@
 # Source directory and build directory
-SRCDIR = src
-BUILDDIR = build
+SRCDIR = ./src
+BUILDDIR = ./build
 
 # UTILOBJ
-UTIL_OBJ = build/util.o
+UTIL_OBJ = $(BUILDDIR)/util.o
 
 
 # Default target
-all:  util wd server km drone interface main
+all: $(BUILDDIR) util wd server km drone interface main
+
+# create build directory
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
 
 # Run project
 run:
