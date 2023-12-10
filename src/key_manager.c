@@ -85,7 +85,8 @@ int main()
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
 
-        sharedKey = NO_KEY_PRESSED; // Clear the shared memory after processing the key
+        // Clear memory after processing the key
+        *(int*)ptr_key = 0;
     }
 
     // Close shared memories
