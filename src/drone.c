@@ -132,8 +132,9 @@ int main()
             // Calling the function
             double maxX_f = (double)maxX;
             double maxY_f = (double)maxY;
-            eulerMethod(&pos_x, &Vx, forceX, &pos_y, &Vy, forceY, &maxX_f, &maxY_f);
-            
+            eulerMethod(&pos_x, &Vx, forceX, &maxX_f);
+            eulerMethod(&pos_y, &Vy, forceY, &maxY_f);
+
             // Only print the positions when there is still velocity present.
             if (fabs(Vx) > FLOAT_TOLERANCE || fabs(Vy) > FLOAT_TOLERANCE)
             {
@@ -152,28 +153,7 @@ int main()
 
             sem_post(sem_pos);
         }
-        // /* DRONE CONTROL WITH THE STEP METHOD*/
-        // else
-        // {
-        //     if (abs(actionX) <= 1.0)
-        //     {
-        //         // Calling the function
-        //         stepMethod(&x,&y,actionX,actionY);
-        //         // Only print when there is change in the position.
-        //         if(actionX!=0 || actionY!=0){
-        //             printf("Action (X,Y): %s\n",ptr_action);
-        //             printf("X - Position: %d / Velocity: %.2f\t|\t", x, Vx);
-        //             printf("Y - Position: %d / Velocity: %.2f\n", y, Vy);
-        //             fflush(stdout);
-        //         }
-        //         sprintf(ptr_action, "%d,%d", 0, 0); // Zeros written on action memory
-        //         // Write new drone position to shared memory
-        //         sprintf(ptr_pos, "%d,%d,%d,%d", x, y, maxX, maxY);
-        //         sem_post(sem_pos);
-        //     }
-        // }
-        // Introduce a delay on the loop to simulate real-time intervals.
-        usleep(TIME_INTERVAL * 1e6); // 0.1 s
+        usleep(D_T * 1e6); // 0.1 s
     }
 
     // Close shared memories and semaphores
@@ -185,29 +165,19 @@ int main()
     return 0;
 }
 
-void eulerMethod(double *x, double *Vx, double forceX,
-                 double *y, double *Vy, double forceY,
-                 double *maxX, double *maxY)
+void eulerMethod(double *pos, double *vel, double force, double *maxPos)
 {
-    double accelerationX = (forceX - DAMPING * (*Vx)) / MASS;
-    double accelerationY = (forceY - DAMPING * (*Vy)) / MASS;
+    double accelerationX = (force - DAMPING * (*vel)) / MASS;
+    *vel = *vel + accelerationX * D_T;
+    *pos = *pos + (*vel) * D_T;
 
-    // Update velocity and position for X using Euler's method
-    *Vx = *Vx + accelerationX * TIME_INTERVAL;
-    *x = *x + (*Vx) * TIME_INTERVAL;
-    if (*x < 0){*x = 0;}
-    if (*x > *maxX){*x = *maxX-1;}
-
-    // Update velocity and position for Y using Euler's method
-    *Vy = *Vy + accelerationY * TIME_INTERVAL;
-    *y = *y + (*Vy) * TIME_INTERVAL;
-    if (*y < 0){*y = 0;}
-    if (*y > *maxY){*y = *maxY-1;}
+    // TODO: Repellent forces CHECKS FOR Walls
+    if (*pos < 0)
+    {
+        *pos = 0;
+    }
+    if (*pos > *maxPos)
+    {
+        *pos = *maxPos - 1;
+    }
 }
-
-
-//  void stepMethod(int *x, int *y, int actionX, int actionY)
-// {
-//     (*x) = (*x) + actionX;
-//     (*y) = (*y) + actionY;
-// }
