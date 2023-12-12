@@ -11,7 +11,6 @@
 #include <sys/shm.h>
 #include <sys/mman.h>
 
-// #include <ctype.h>
 #include <fcntl.h>
 #include <math.h>
 #include <semaphore.h>

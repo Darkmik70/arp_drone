@@ -15,7 +15,6 @@
 #include <ncurses.h>
 #include <semaphore.h>
 #include <signal.h>
-// #include <ctype.h>
 
 
 /* Global variables */
