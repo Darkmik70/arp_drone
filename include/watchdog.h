@@ -3,6 +3,8 @@
 
 #include<sys/types.h>
 
+#define THRESHOLD 5 // Threshold for counters
+
 /**
  * Get PIDs from other processes.
  * This function retrieves pids from other processes using shared memory created by the server. 

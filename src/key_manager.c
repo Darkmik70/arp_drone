@@ -5,21 +5,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+
 #include <ctype.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <signal.h>
+#include <semaphore.h>
 
 
 // GLOBAL VARIABLES
-int sharedKey;
-int sharedAction;
+int shm_key_fd;             // File descriptor for key shm
+int shm_action_fd;          // File descriptor for action shm
 void *ptr_key;              // Shared memory for Key pressing
-void *ptr_action;           // Shared memory for Drone Position      
+void *ptr_action;           // Shared memory for drone action      
 sem_t *sem_key;             // Semaphore for key presses
 sem_t *sem_action;          // Semaphore for drone positions
 
@@ -59,12 +61,12 @@ int main()
     publish_pid_to_wd(KM_SYM, getpid());
 
     // Initialize shared memory for KEY PRESSING
-    sharedKey = shm_open(SHM_KEY, O_RDWR, 0666);
-    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedKey, 0);
+    shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
+    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
 
     // Initialize shared memory for DRONE CONTROL - ACTION
-    sharedAction = shm_open(SHM_ACTION, O_RDWR, 0666);
-    ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, sharedAction, 0);
+    shm_action_fd = shm_open(SHM_ACTION, O_RDWR, 0666);
+    ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_action_fd, 0);
 
     // Initialize semaphores
     sem_key = sem_open(SEM_KEY, 0);
@@ -85,12 +87,13 @@ int main()
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
 
-        sharedKey = NO_KEY_PRESSED; // Clear the shared memory after processing the key
+        // Clear memory after processing the key
+        *(int*)ptr_key = 0;
     }
 
     // Close shared memories
-    close(sharedKey);
-    close(sharedAction);
+    close(shm_key_fd);
+    close(shm_action_fd);
 
     // Close and unlink the semaphores
     sem_close(sem_key);
@@ -101,7 +104,7 @@ int main()
 
 
 // US Keyboard assumed
-char* determineAction(int pressedKey, char *sharedAction)
+char* determineAction(int pressedKey, char *shm_action_fd)
 {
     char key = toupper(pressedKey);
     int x; int y;
@@ -111,63 +114,63 @@ char* determineAction(int pressedKey, char *sharedAction)
     {
         x = 0;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "UP";
     }
     if ( key == 'X' || key == ',')
     {
         x = 0;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN";
     }
     if ( key == 'A' || key == 'J')
     {
         x = -1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "LEFT";
     }
     if ( key == 'D' || key == 'L')
     {
         x = 1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "RIGHT";
     }
     if ( key == 'Q' || key == 'U')
     {
         x = -1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "UP-LEFT";
     }
     if ( key == 'E' || key == 'O')
     {
         x = 1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "UP-RIGHT";
     }
     if ( key == 'Z' || key == 'M')
     {
         x = -1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN-LEFT";
     }
     if ( key == 'C' || key == '.')
     {
         x = 1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN-RIGHT";
     }
     if ( key == 'S' || key == 'K')
     {
         x = 900;    // Special value interpreted by drone.c process
         y = 0;
-        sprintf(sharedAction, "%d,%d", x, y);
+        sprintf(shm_action_fd, "%d,%d", x, y);
         return "STOP";
     }
     else

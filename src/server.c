@@ -5,17 +5,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+
 #include <semaphore.h>
+#include <signal.h>
 #include <fcntl.h>
 
-#include <signal.h>
+
 
 // GLOBAL VARIABLES
-// Attach to shared memory for key presses
 void *ptr_wd;                           // Shared memory for WD
 void *ptr_key;                          // Shared memory for Key pressing
 void *ptr_pos;                          // Shared memory for Drone Position
@@ -28,6 +30,7 @@ sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
 int main() 
 {   
+    /* Sigaction */
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
@@ -54,7 +57,7 @@ int main()
 
     // Shared memory for KEY PRESSING
     ptr_key = create_shm(SHM_KEY);
-    sem_key = sem_open(SEM_KEY, O_CREAT, S_IRUSR | S_IWUSR, 1);
+    sem_key = sem_open(SEM_KEY, O_CREAT, S_IRUSR | S_IWUSR, 0);
     if (sem_key == SEM_FAILED) {
         perror("sem_key failed");
         exit(1);
@@ -81,7 +84,7 @@ int main()
     while (1)
     {
         // Busy sleep friend
-        usleep(500000);
+        usleep(SLEEP_TIME);
     }
 
     // Close and unlink the semaphores
@@ -96,7 +99,6 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     {
         printf("Caught SIGINT\n");
         clean_up();
-        sleep(5);
         exit(1);
     }
     if (signo == SIGUSR1)

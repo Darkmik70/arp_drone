@@ -1,11 +1,13 @@
 #include "main.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
+
 #include <sys/wait.h>
 #include <sys/types.h>
-#include <time.h>
 
 
 int main(int argc, char *argv[])
@@ -17,7 +19,6 @@ int main(int argc, char *argv[])
     pid_t wd_pid;
 
     int delay = 100000; // Time delay between next spawns
-
     int p_num = 0;  // number of processes
 
     /* Server  */
