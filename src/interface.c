@@ -5,23 +5,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include <sys/ipc.h>
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+
+#include <fcntl.h>
 #include <ncurses.h>
 #include <semaphore.h>
-#include <ctype.h>
-#include <fcntl.h>
-
 #include <signal.h>
+// #include <ctype.h>
+
 
 /* Global variables */
-// Attach to shared memory for key presses
-int *ptr_key;   // Shared memory for Key pressing
-char *ptr_pos;  // Shared memory for Drone Position
-sem_t *sem_key; // Semaphore for key presses
-sem_t *sem_pos; // Semaphore for drone positions
+int shm_key_fd;         // File descriptor for key shm
+int shm_pos_fd;         // File descriptor for drone pos shm
+int *ptr_key;           // Shared memory for Key pressing
+char *ptr_pos;          // Shared memory for Drone Position
+sem_t *sem_key;         // Semaphore for key presses
+sem_t *sem_pos;         // Semaphore for drone positions
+
 
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 
@@ -57,16 +61,14 @@ int main()
     sigaction (SIGINT, &sa, NULL);  
     sigaction (SIGUSR1, &sa, NULL);    
   
-
     publish_pid_to_wd(WINDOW_SYM, getpid());
 
     // Shared memory for KEY PRESSING
-    int shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
+    shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
     ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
 
-
     // Shared memory for DRONE POSITION
-    int shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
+    shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
     ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
 
     sem_key = sem_open(SEM_KEY, 0);
@@ -74,45 +76,42 @@ int main()
 
     
     /* INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS */
-    initscr(); // Initialize
-    timeout(0); // Set non-blocking getch
-    curs_set(0); // Hide the cursor from the terminal
-    // Initialize color for drawing drone
+    initscr();
+    timeout(0);
+    curs_set(0);
     start_color();
-    init_pair(1, COLOR_BLUE, COLOR_BLACK);
-    noecho(); // Disable echoing: no key character will be shown when pressed.
+    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone color
+    noecho(); // Disable echoing
 
-    // Set the initial drone position (middle of the window)
+    /* Set initial drone position */
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX);
-    int droneX = maxX / 2;
+    int droneX = maxX / 2; // Middle of the screen
     int droneY = maxY / 2;
     // Write initial drone position in its corresponding shared memory
     sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
 
 
-    while (1) {
-        sem_wait(sem_pos); // Wait for the semaphore to be signaled from drone.c process
+    while (1)
+    {
+        sem_wait(sem_pos); // Waits for drone process
+        
         // Obtain the position values from shared memory
         sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);  
-        // Create the window
-        if (createWindow(maxX, maxY) == 1){
-            getmaxyx(stdscr, maxY, maxX);
-            // Rewrite the maximum values because windows size change (==1)
-            sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
-        }
-        // Draw the drone on the screen based on the obtained positions.
+
+        createWindow(maxX, maxY);
         drawDrone(droneX, droneY);
-        // Call the function that obtains the key that has been pressed.
         handleInput(ptr_key, sem_key);
+
+        sem_post(sem_key);    // unlocks to allow keyboard manager
     }
-    
-    // Clean up and finish up resources taken by ncurses
+
+    /* cleanup */
     endwin(); 
-    // Close shared memories
+
+    /* Close shared memories and semaphores */
     close(shm_key_fd);
     close(shm_pos_fd);
-    // Close and unlink semaphores
     sem_close(sem_key);
     sem_close(sem_pos);
 
@@ -120,20 +119,20 @@ int main()
 }
 
 
-int createWindow(int maxX, int maxY){
-    // Clear the screen
+
+void createWindow(int maxX, int maxY)
+{
     clear();
-    // Get the dimensions of the terminal window
+
+    /* get dimensions of the screen */ // Dynamical window frame
     int new_maxY, new_maxX;
     getmaxyx(stdscr, new_maxY, new_maxX);
-    // Draw a rectangular border using the box function
-    box(stdscr, 0, 0);
+    box(stdscr, 0, 0);  // Draw a rectangular border using the box function
+   
     // Print a title in the top center part of the window
-    mvprintw(0, (new_maxX - 11) / 2, "Drone Control");
-    // Refresh the screen to apply changes
-    refresh();
-    if(new_maxX != maxX || new_maxY != maxY){return 1;}
-    else{return 0;}
+    mvprintw(0, (new_maxX - 11) / 2, "Drone Control"); 
+
+    refresh(); // Apply changes 
 }
 
 void drawDrone(int droneX, int droneY)
@@ -149,7 +148,6 @@ void handleInput(int *sharedKey, sem_t *semaphore)
     if ((ch = getch()) != ERR)
     {
         *sharedKey = ch;    // Store the pressed key in shared memory
-        sem_post(semaphore);    // Signal the semaphore to process key_manager.c
     }
     // echo(); // Re-enable echoing
     flushinp(); // Clear the input buffer

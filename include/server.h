@@ -1,15 +1,10 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <semaphore.h>
-#include <fcntl.h>
 #include <signal.h>
 
+
+#define SLEEP_TIME 500000  
 
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context);

@@ -1,14 +1,16 @@
 #include "constants.h"
-#include <fcntl.h>
-#include <signal.h>
+
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
-#include <unistd.h>
-#include <semaphore.h>
 
+#include <fcntl.h>
+#include <semaphore.h>
+#include <signal.h>
 
 void publish_pid_to_wd(int process_symbol, pid_t pid)
 {   
@@ -28,7 +30,6 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
     // Allow other processes to do that. 
     sem_post(sem_wd_1);
 
-
     // PID's published, close your connections
     sem_close(sem_wd_1);
     sem_close(sem_wd_2);
@@ -36,5 +37,4 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
 
     // Detach from shared memorry
     munmap(ptr_wd,SIZE_SHM);
-    // When all is done unlink from shm
 }

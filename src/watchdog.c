@@ -4,14 +4,17 @@
 #include <stdio.h>  
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <fcntl.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
-#include <unistd.h>
+
+#include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
+
+
 
 /* Global variables */
 pid_t server_pid;
@@ -20,7 +23,7 @@ pid_t km_pid;
 pid_t drone_pid;
 pid_t wd_pid;
 
-// Variables for health monitoring
+/* Counters for components*/
 int cnt_server;
 int cnt_window;
 int cnt_km;
@@ -90,7 +93,6 @@ int main(int argc, char* argv[])
     cnt_km = 0;
     cnt_drone = 0;
 
-    int threshold = 5;
     while(1)
     {
         // increment counter
@@ -111,7 +113,7 @@ int main(int argc, char* argv[])
 
 
         // If any of the processess does not respond in given timeframe, close them all
-        if (cnt_server > threshold || cnt_window > threshold || cnt_km > threshold || cnt_drone > threshold)
+        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD)
         {
             send_sigint_to_all();
         }
