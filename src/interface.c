@@ -77,8 +77,12 @@ int main()
     /* INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS */
     initscr();
     timeout(0);
+    keypad(stdscr, TRUE);
+    cbreak();	/* Line buffering disabled. pass on everything */
     curs_set(0);
     start_color();
+
+
     init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone color
     noecho(); // Disable echoing
 
@@ -141,13 +145,32 @@ void drawDrone(int droneX, int droneY)
     refresh();
 }
 
+
 void handleInput(int *sharedKey, sem_t *semaphore)
 {
     int ch;
     if ((ch = getch()) != ERR)
     {
+        switch(ch)
+        {
+            case KEY_UP:
+                ch = 'w';
+            break;
+            case KEY_LEFT:
+                ch = 'a';
+            break;
+            case KEY_DOWN:
+                ch = 'x';
+            break;
+            case KEY_RIGHT:
+                ch = 'd';
+            break;
+            case ' ': // SPACEBAR
+                ch = 's';
+            break;
+        }
         *sharedKey = ch;    // Store the pressed key in shared memory
-    }
+    }    
     // echo(); // Re-enable echoing
     flushinp(); // Clear the input buffer
 }
