@@ -10,25 +10,41 @@
 #include <sys/types.h>
 
 
+// Pipes
+int key_pressing_pfd[2];
+
+
 int main(int argc, char *argv[])
 {
+    // PIDs
     pid_t server_pid;
     pid_t window_pid;
     pid_t km_pid;
     pid_t drone_pid;
     pid_t wd_pid;
 
+    create_pipes();
+
+    // File descriptors for  given files
+    char key_manager_fds[80];
+    char window_fds[80];
+
+    sprintf(key_manager_fds, "%d %d", key_pressing_pfd[0], key_pressing_pfd[1]);
+    sprintf(window_fds, "%d %d", key_pressing_pfd[0], key_pressing_pfd[1]);
+
+
     int delay = 100000; // Time delay between next spawns
     int p_num = 0;  // number of processes
 
-    /* Server  */
+
+    /* Server */
     char* server_args[] = {"konsole", "-e", "./build/server", NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
-    usleep(delay*10); //little bit more time for server
+    usleep(delay*10); // little bit more time for server
 
     /* Keyboard manager */
-    char* km_args[] = {"konsole", "-e", "./build/key_manager", NULL};
+    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds, NULL};
     km_pid = create_child(km_args[0], km_args);
     p_num++;
     usleep(delay);
@@ -46,8 +62,8 @@ int main(int argc, char *argv[])
     printf("Watchdog Created\n");
 
     /* Window - Interface */
-    char* ui_args[] = {"konsole", "-e", "./build/interface", NULL};
-    window_pid = create_child(ui_args[0], ui_args);
+    char* window_args[] = {"konsole", "-e", "./build/interface", window_fds, NULL};
+    window_pid = create_child(window_args[0], window_args);
     p_num++;
     usleep(delay);
 
@@ -62,11 +78,16 @@ int main(int argc, char *argv[])
             printf("Child process with PID: %i terminated with exit status: %i\n", pid, WEXITSTATUS(status));
         }
     }
-
     printf("All child processes closed, closing main process...\n");
     return 0;
 }
 
+void create_pipes()
+{
+    pipe(key_pressing_pfd);
+
+    printf("Pipes Succesfully created");
+}
 
 int create_child(const char *program, char **arg_list)
 {
@@ -78,7 +99,6 @@ int create_child(const char *program, char **arg_list)
     }
     else if (child_pid == 0)
     {   
-        // This is where child goes
         execvp(program, arg_list);
     }
     else

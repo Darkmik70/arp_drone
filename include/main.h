@@ -1,6 +1,10 @@
 #ifndef MAIN_H    
 #define MAIN_H
 
+
+void create_pipes();
+
+
 /**
  * Creates Child child process
  * @param program name of the process

@@ -19,6 +19,9 @@
 #define SHM_ACTION "/shared_control"
 #define SEM_ACTION "/my_semaphore_3"
 
+// Pipes
+#define MSG_LEN  80
+
 // Special value to indicate no key pressed
 #define NO_KEY_PRESSED 0
 

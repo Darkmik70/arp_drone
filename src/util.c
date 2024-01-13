@@ -1,6 +1,7 @@
 #include "constants.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -38,3 +39,66 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
     // Detach from shared memorry
     munmap(ptr_wd,SIZE_SHM);
 }
+
+
+
+// Pipe functions
+void write_to_pipe(int pipe_fd, char *message)
+{
+    ssize_t bytes_written = write(pipe_fd, message, sizeof(message));
+    if (bytes_written == -1)
+    {
+        perror("Write went wrong");
+        exit(1);
+    }
+}
+
+// bool ask_to_write_on_pipe(int pipe)
+// {
+//     while (1)
+//     {
+//         if (!in_progress)
+//         {
+//             printf("Sent write request\n");
+//             write(send_pipe, ask_char, strlen(ask_char) + 1);
+//             in_progress = 1;
+//         }
+
+//     }
+
+// }
+// {
+
+//     while (1) 
+//     {   
+//         // send ask
+//         if(!in_progress){
+//             printf("Sent write request\n");
+//             write(send_pipe, ask_char, strlen(ask_char) + 1);
+//             in_progress = 1;
+//         }
+//         else //wait for reply
+//         {
+//             read(receive_pipe, read_str, MSG_LEN);
+//             if(read_str[0] == 'K')
+//             {
+//                 send_int = random() % 255;
+//                 sprintf(send_str, "%i", send_int);
+
+//                 printf("Acknowledged, sent %i \n", send_int);
+
+//                 write(send_pipe, send_str, strlen(send_str)+1);
+//             }
+//             else if (read_str[0] == 'R')
+//             {
+//                 printf("Rejected \n");
+//             }
+//             in_progress = 0;
+//         }
+//         sleep(2);
+//     } 
+//     return 0; 
+// } 
+
+// }
+

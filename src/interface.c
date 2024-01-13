@@ -26,34 +26,14 @@ sem_t *sem_key;         // Semaphore for key presses
 sem_t *sem_pos;         // Semaphore for drone positions
 
 
+// Pipes
+int key_pressing_pfd[2];
 
-void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+
+int main(int argc, char *argv[])
 {
-    // printf(" Received signal number: %d \n", signo);
-    if( signo == SIGINT)
-    {
-        printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_key);
-        sem_close(sem_pos);
+    get_args(argc, argv);
 
-        printf("Succesfully closed all semaphores\n");
-        sleep(10);
-        exit(1);
-    }
-    if (signo == SIGUSR1)
-    {
-        //TODO REFRESH SCREEN
-        // Get watchdog's pid
-        pid_t wd_pid = siginfo->si_pid;
-        // inform on your condition
-        kill(wd_pid, SIGUSR2);
-        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
-    }
-}
-
-int main()
-{
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
@@ -73,7 +53,6 @@ int main()
     sem_key = sem_open(SEM_KEY, 0);
     sem_pos = sem_open(SEM_POS, 0);
 
-    
     /* INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS */
     initscr();
     timeout(0);
@@ -90,7 +69,6 @@ int main()
     // Write initial drone position in its corresponding shared memory
     sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
 
-
     while (1)
     {
         sem_wait(sem_pos); // Waits for drone process
@@ -98,8 +76,7 @@ int main()
         // Obtain the position values from shared memory
         sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);  
 
-        createWindow(maxX, maxY);
-        drawDrone(droneX, droneY);
+        draw_window(maxX, maxY, droneX, droneY);
         handleInput(ptr_key, sem_key);
 
         sem_post(sem_key);    // unlocks to allow keyboard manager
@@ -117,9 +94,37 @@ int main()
     return 0;
 }
 
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d", &key_pressing_pfd[0], &key_pressing_pfd[1]);
+}
 
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    // printf(" Received signal number: %d \n", signo);
+    if( signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_key);
+        sem_close(sem_pos);
 
-void createWindow(int maxX, int maxY)
+        printf("Succesfully closed all semaphores\n");
+        sleep(2);
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        //TODO REFRESH SCREEN
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
+}
+
+void draw_window(int maxX, int maxY,int droneX,int droneY)
 {
     clear();
 
@@ -131,21 +136,24 @@ void createWindow(int maxX, int maxY)
     // Print a title in the top center part of the window
     mvprintw(0, (new_maxX - 11) / 2, "Drone Control"); 
 
+    // Draw a plus sign to represent the drone
+    mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
+
     refresh(); // Apply changes 
 }
 
-void drawDrone(int droneX, int droneY)
-{
-    // Draw a plus sign to represent the drone
-    mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
-    refresh();
-}
 
 void handleInput(int *sharedKey, sem_t *semaphore)
 {
     int ch;
     if ((ch = getch()) != ERR)
     {
+        // write char to the pipe
+        char msg[MSG_LEN];
+        sprintf(msg, "%c", ch);
+
+        write_to_pipe(key_pressing_pfd[1], msg);
+        
         *sharedKey = ch;    // Store the pressed key in shared memory
     }
     // echo(); // Re-enable echoing

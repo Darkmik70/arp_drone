@@ -3,7 +3,7 @@
 
 #include<sys/types.h>
 
-#define THRESHOLD 5 // Threshold for counters
+#define THRESHOLD 50 // Threshold for counters
 
 /**
  * Get PIDs from other processes.

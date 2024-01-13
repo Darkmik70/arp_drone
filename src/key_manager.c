@@ -8,6 +8,7 @@
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
@@ -25,40 +26,26 @@ void *ptr_action;           // Shared memory for drone action
 sem_t *sem_key;             // Semaphore for key presses
 sem_t *sem_action;          // Semaphore for drone positions
 
-void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+// Pipes
+int key_pressing_pfd[2];
+
+int main(int argc, char *argv[]) 
 {
-    // printf("Received signal number: %d \n", signo);
-    if  (signo == SIGINT)
-    {
-        printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_key);
-        sem_close(sem_action);
 
-        printf("Succesfully closed all semaphores\n");
-        exit(1);
-    }
-    if (signo == SIGUSR1)
-    {
-        // Get watchdog's pid
-        pid_t wd_pid = siginfo->si_pid;
-        // inform on your condition
-        kill(wd_pid, SIGUSR2);
-        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
-    }
-}
+    get_args(argc, argv);
 
-
-int main() 
-{
     struct sigaction sa;
     sa.sa_sigaction = signal_handler; 
     sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);
-    sigaction (SIGUSR1, &sa, NULL);    
+    sigaction (SIGUSR1, &sa, NULL);   
 
     
     publish_pid_to_wd(KM_SYM, getpid());
+
+
+
+    //
 
     // Initialize shared memory for KEY PRESSING
     shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
@@ -77,7 +64,13 @@ int main()
         /*THIS SECTION IS FOR OBTAINING KEY INPUT*/
 
         sem_wait(sem_key);  // Wait for the semaphore to be signaled from interface.c process
-        int pressedKey = *(int*)ptr_key;    // Read the pressed key from shared memory 
+        // int pressedKey = *(int*)ptr_key;    // Read the pressed key from shared memory 
+
+        // Read from the file descriptor
+        int pressedKey = read_key_from_pipe(key_pressing_pfd[0]);
+
+        
+
         printf("Pressed key: %c\n", (char)pressedKey);
         fflush(stdout);
 
@@ -100,6 +93,22 @@ int main()
     sem_close(sem_action);
 
     return 0;
+}
+
+int read_key_from_pipe(int pipe_fd)
+{
+    char msg[MSG_LEN];
+
+    ssize_t bytes_read = read(pipe_fd, msg, sizeof(msg));
+    // if (bytes_read == -1)
+    // {
+    //     perror("read");
+    //     exit(1);
+    // }
+    
+    printf("succesfully read from window\n");
+    int pressed_key = msg[0];
+    return pressed_key;
 }
 
 
@@ -178,4 +187,32 @@ char* determineAction(int pressedKey, char *shm_action_fd)
         return "None";
     }
 
+}
+
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d", &key_pressing_pfd[0], &key_pressing_pfd[1]);
+}
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    // printf("Received signal number: %d \n", signo);
+    if  (signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_key);
+        sem_close(sem_action);
+
+        printf("Succesfully closed all semaphores\n");
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
