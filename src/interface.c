@@ -26,7 +26,6 @@ char *ptr_pos;          // Shared memory for Drone Position
 sem_t *sem_key;         // Semaphore for key presses
 sem_t *sem_pos;         // Semaphore for drone positions
 
-
 // Pipes
 int key_pressing_pfd[2];
 
@@ -136,17 +135,17 @@ int main(int argc, char *argv[])
         sem_wait(sem_pos); // Waits for drone process
 
         // OBSTACLES: Should be obtained from a pipe from server.c
-        char obstacles_msg[] = "O[7]35,11|30,5|16,30|38,7|30,40|53,15|2,10";
+        char obstacles_msg[] = "O[7]35,11|100,5|16,30|88,7|130,40|53,15|60,10";
         Obstacles obstacles[30];
         int numObstacles;
         parseObstaclesMsg(obstacles_msg, obstacles, &numObstacles);
 
         // Obtain the position values from shared memory
-        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);  
+        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY); 
 
         // UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER 
         // ...
-        int numTargets = sizeof(targets) / sizeof(targets[0]);
+
         // Find the index of the target with the lowest ID
         int lowestIndex = findLowestID(targets, numTargets);
         // Check if the coordinates of the lowest ID target match the drone coordinates
@@ -160,7 +159,7 @@ int main(int argc, char *argv[])
         handleInput(ptr_key, sem_key);
 
         sem_post(sem_key);    // unlocks to allow keyboard manager
-        usleep(100000);
+
     }
 
     /* cleanup */
@@ -228,7 +227,7 @@ void draw_window(int maxX, int maxY, int droneX, int droneY, Targets *targets, i
     // Draw targets on the board
     for (int i = 0; i < numTargets; i++) {
         mvaddch(targets[i].y, targets[i].x, targets[i].id + '0');
-     }
+    }
 
     refresh(); // Apply changes
 }
