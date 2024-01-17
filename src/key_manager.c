@@ -43,8 +43,6 @@ int main(int argc, char *argv[])
     
     publish_pid_to_wd(KM_SYM, getpid());
 
-
-
     //
 
     // Initialize shared memory for KEY PRESSING
@@ -70,7 +68,6 @@ int main(int argc, char *argv[])
         int pressedKey = read_key_from_pipe(key_pressing_pfd[0]);
 
         
-
         printf("Pressed key: %c\n", (char)pressedKey);
         fflush(stdout);
 

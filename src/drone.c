@@ -49,6 +49,11 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
+
+
+
+
+
 int main() 
 {
     struct sigaction sa;
@@ -127,6 +132,9 @@ int main()
                 forceX = 0.0; 
                 forceY = 0.0;
             }
+
+            // Calculate the EXTERNAL FORCE from obstacles and targets
+            
 
             // Calling the function
             double maxX_f = (double)maxX;

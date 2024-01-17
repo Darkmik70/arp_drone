@@ -9,6 +9,19 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 void get_args(int argc, char *argv[]);
 
+typedef struct {
+    int total;
+    int x;
+    int y;
+} Obstacles;
+
+typedef struct {
+    int id;
+    int x;
+    int y;
+} Targets;
+
+
 /**
  * Draw the window on the screen.
  * Draws dynamical box which adapts to the actual size of window
@@ -18,7 +31,7 @@ void get_args(int argc, char *argv[]);
  * @param droneX    Drone's position in x
  * @param droneY    Drone's position in y
  */
-void draw_window(int maxX, int maxY, int droneX, int DroneY);
+void draw_window(int maxX, int maxY, int droneX, int droneY, Targets *targets, int numTargets, Obstacles *obstacles, int numObstacles);
 
 /**
  * Read the input from the keyboard, the pressed keys

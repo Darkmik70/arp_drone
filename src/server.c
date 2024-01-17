@@ -111,7 +111,6 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
-
 void *create_shm(char *name)
 {
     int shm_fd = shm_open(name, O_CREAT | O_RDWR, 0666);
