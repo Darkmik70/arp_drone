@@ -54,6 +54,19 @@ void write_to_pipe(int pipe_fd, char *message)
         exit(1);
     }
 }
+//TODO add to util.h and add comments
+void log_msg(int who, int type, char *msg)
+{
+    int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
+    void *ptr_logs = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_logs_fd, 0);
+
+    // unsure if it will work
+    sprintf(ptr_logs, "%i|%i|%s", who, type, msg);
+
+    // Detach from shared memorry
+    munmap(ptr_logs,SIZE_SHM);
+    close(shm_logs_fd);
+}
 
 // bool ask_to_write_on_pipe(int pipe)
 // {

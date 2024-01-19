@@ -47,6 +47,12 @@ int main(int argc, char *argv[])
     p_num++;
     usleep(delay*10); // little bit more time for server
 
+    // /* Logger */ 
+    // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
+    // window_pid = create_child(logger_args[0], logger_args);
+    // p_num++;
+    // usleep(delay);
+
     /* Keyboard manager */
     char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds, NULL};
     km_pid = create_child(km_args[0], km_args);

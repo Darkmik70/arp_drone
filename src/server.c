@@ -22,9 +22,12 @@ void *ptr_wd;                           // Shared memory for WD
 void *ptr_key;                          // Shared memory for Key pressing
 void *ptr_pos;                          // Shared memory for Drone Position
 void *ptr_action;                       // Shared memory ptr for actions
+void *ptr_logs;                 
+
 sem_t *sem_key;                         // Semaphore for key presses
 sem_t *sem_pos;                         // Semaphore for drone positions
 sem_t *sem_action;                      // Semaphore for actions
+sem_t *sem_logs;
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
 // TODO: Obtain the messages from obstacles and targets using pipes.
@@ -53,6 +56,14 @@ int main()
     sem_wd_3 = sem_open(SEM_WD_3, O_CREAT, S_IRUSR | S_IWUSR, 0); // 0 for locked, this semaphore is unlocked by WD in order to get pids
     if (sem_wd_3 == SEM_FAILED) {
         perror("sem_wd_2 failed");
+        exit(1);
+    }
+
+    // Shared memory for LOGS
+    ptr_logs = create_shm(SHM_LOGS);
+    sem_logs = sem_open(SEM_LOGS, O_CREAT, S_IRUSR | S_IWUSR, 0); // this dude is locked
+    if (sem_logs == SEM_FAILED) {
+        perror("sem_logs failed");
         exit(1);
     }
 
