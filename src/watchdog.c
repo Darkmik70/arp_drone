@@ -14,7 +14,7 @@
 #include <semaphore.h>
 #include <signal.h>
 
-
+// TODO: Make the necessary changes to work with the final version of program for assigment 2
 
 /* Global variables */
 pid_t server_pid;

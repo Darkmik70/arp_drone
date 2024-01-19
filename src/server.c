@@ -27,6 +27,7 @@ sem_t *sem_pos;                         // Semaphore for drone positions
 sem_t *sem_action;                      // Semaphore for actions
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
+// TODO: Obtain the messages from obstacles and targets using pipes.
 
 int main() 
 {   

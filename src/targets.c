@@ -93,8 +93,10 @@ int main() {
     // Print the generated targets in the specified format
     printf("%s\n", targets_msg); // Instead of print, this string should be sent to server.c
 
-    // Add a 20-second delay
-    sleep(1);
+    //TODO: Send the targets_msg string using pipes to (main.c) with final destination to be (interface.c)
+
+    // Add a 5-second delay before finishing
+    sleep(5);
 
     return 0;
 }

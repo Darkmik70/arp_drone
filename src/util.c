@@ -13,6 +13,8 @@
 #include <semaphore.h>
 #include <signal.h>
 
+// TODO: Edit according to usage regarding PIPES
+
 void publish_pid_to_wd(int process_symbol, pid_t pid)
 {   
     int shm_wd_fd = shm_open(SHM_WD, O_RDWR, 0666);

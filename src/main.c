@@ -13,6 +13,10 @@
 // Pipes
 int key_pressing_pfd[2];
 
+// TODO: Execute the new files (targets.c and obstacles.c)
+// TODO: Create all the required pipes.
+// TODO: Only execute in Konsole the interface.c and the drone.c for monitoring of force, pos, vel.
+
 
 int main(int argc, char *argv[])
 {

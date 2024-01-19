@@ -43,16 +43,14 @@ int main(int argc, char *argv[])
     
     publish_pid_to_wd(KM_SYM, getpid());
 
-    //
+    // DELETE: Everthing related to shared memory and semaphores
 
     // Initialize shared memory for KEY PRESSING
     shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
     ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
-
     // Initialize shared memory for DRONE CONTROL - ACTION
     shm_action_fd = shm_open(SHM_ACTION, O_RDWR, 0666);
     ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_action_fd, 0);
-
     // Initialize semaphores
     sem_key = sem_open(SEM_KEY, 0);
     sem_action = sem_open(SEM_ACTION, 0);
@@ -61,30 +59,34 @@ int main(int argc, char *argv[])
     {
         /*THIS SECTION IS FOR OBTAINING KEY INPUT*/
 
-        sem_wait(sem_key);  // Wait for the semaphore to be signaled from interface.c process
+        // DELETE: Wait for the semaphore to be signaled from interface.c process
+        sem_wait(sem_key);
+        // TODO: WAIT until there is data present on the pipe
+        // *
+
         // int pressedKey = *(int*)ptr_key;    // Read the pressed key from shared memory 
 
         // Read from the file descriptor
         int pressedKey = read_key_from_pipe(key_pressing_pfd[0]);
-
-        
         printf("Pressed key: %c\n", (char)pressedKey);
         fflush(stdout);
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
-
         char *action = determineAction(pressedKey, ptr_action);
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
 
-        // Clear memory after processing the key
+        // DELETE: Clear memory after processing the key
         *(int*)ptr_key = 0;
+        // TODO: Currently this program is continuously sending the same key, which causes the drone to increase in force...
+        // in every loop. Like pressing W-W-W-W-W-W-W-W and giving the maximum possible force in little to no time.
+        // *
     }
 
+    // DELETE: Everything related to shared memory and semaphores
     // Close shared memories
     close(shm_key_fd);
     close(shm_action_fd);
-
     // Close and unlink the semaphores
     sem_close(sem_key);
     sem_close(sem_action);
@@ -114,6 +116,8 @@ char* determineAction(int pressedKey, char *shm_action_fd)
 {
     char key = toupper(pressedKey);
     int x; int y;
+
+    // TODO: Every sprintf is a write into shared memory. Must be changed into the action pipe sent to (drone.c)
 
     // Disclaimer: Y axis is inverted on tested terminal.
     if ( key == 'W' || key == 'I')

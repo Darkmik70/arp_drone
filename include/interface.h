@@ -31,7 +31,7 @@ typedef struct {
  * @param droneX    Drone's position in x
  * @param droneY    Drone's position in y
  */
-void draw_window(int maxX, int maxY, int droneX, int droneY, Targets *targets, int numTargets, Obstacles *obstacles, int numObstacles);
+void draw_window(int maxX, int maxY, int droneX, int droneY, Targets *targets, int numTargets, Obstacles *obstacles, int numObstacles, const char *score_msg);
 
 /**
  * Read the input from the keyboard, the pressed keys
