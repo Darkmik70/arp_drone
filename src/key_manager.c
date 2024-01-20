@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -16,7 +17,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <semaphore.h>
-
+#include <errno.h>
 
 // GLOBAL VARIABLES
 int shm_key_fd;             // File descriptor for key shm
@@ -27,7 +28,8 @@ sem_t *sem_key;             // Semaphore for key presses
 sem_t *sem_action;          // Semaphore for drone positions
 
 // Pipes
-int key_pressing_pfd[2];
+int key_press_fd[2];
+int action_fd[2];
 
 int main(int argc, char *argv[]) 
 {
@@ -40,7 +42,6 @@ int main(int argc, char *argv[])
     sigaction (SIGINT, &sa, NULL);
     sigaction (SIGUSR1, &sa, NULL);   
 
-    
     publish_pid_to_wd(KM_SYM, getpid());
 
     // DELETE: Everthing related to shared memory and semaphores
@@ -57,30 +58,45 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        /*THIS SECTION IS FOR OBTAINING KEY INPUT*/
+        /*THIS SECTION IS FOR OBTAINING THE KEY INPUT CHARACTER*/
 
-        // DELETE: Wait for the semaphore to be signaled from interface.c process
-        sem_wait(sem_key);
-        // TODO: WAIT until there is data present on the pipe
-        // *
-
-        // int pressedKey = *(int*)ptr_key;    // Read the pressed key from shared memory 
-
+        fd_set readset_km;
+        // Initializes the file descriptor set readset by clearing all file descriptors from it.
+        FD_ZERO(&readset_km);
+        // Adds key_pressing to the file descriptor set readset.
+        FD_SET(key_press_fd[0], &readset_km);
+        
+        int ready;
+        // This waits until a key press is sent from (interface.c)
+        do {
+            ready = select(key_press_fd[0] + 1, &readset_km, NULL, NULL, NULL);
+            //if (ready == -1) {perror("Error in select");}
+        } while (ready == -1 && errno == EINTR);
+        
         // Read from the file descriptor
-        int pressedKey = read_key_from_pipe(key_pressing_pfd[0]);
+        int pressedKey = read_key_from_pipe(key_press_fd[0]);
         printf("Pressed key: %c\n", (char)pressedKey);
         fflush(stdout);
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
+
         char *action = determineAction(pressedKey, ptr_action);
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
 
-        // DELETE: Clear memory after processing the key
-        *(int*)ptr_key = 0;
-        // TODO: Currently this program is continuously sending the same key, which causes the drone to increase in force...
-        // in every loop. Like pressing W-W-W-W-W-W-W-W and giving the maximum possible force in little to no time.
-        // *
+        // TEMPORAL/DELETE AFTER: TESTING DATA SENT TO PIPE ACTION
+        char key = toupper(pressedKey);
+        int x; int y;
+        char action_msg[20];
+
+        if ( key == 'D')
+        {
+            x = 1;    // Movement on the X axis.
+            y = 0;    // Movement on the Y axis.
+            sprintf(action_msg, "%d,%d", x, y);
+            write_to_pipe(action_fd[1], action_msg);
+            printf("Wrote action message: %s into pipe\n", action_msg);
+        }
     }
 
     // DELETE: Everything related to shared memory and semaphores
@@ -97,15 +113,7 @@ int main(int argc, char *argv[])
 int read_key_from_pipe(int pipe_fd)
 {
     char msg[MSG_LEN];
-
     ssize_t bytes_read = read(pipe_fd, msg, sizeof(msg));
-    // if (bytes_read == -1)
-    // {
-    //     perror("read");
-    //     exit(1);
-    // }
-    
-    printf("succesfully read from window\n");
     int pressed_key = msg[0];
     return pressed_key;
 }
@@ -116,67 +124,70 @@ char* determineAction(int pressedKey, char *shm_action_fd)
 {
     char key = toupper(pressedKey);
     int x; int y;
+    char action_msg[20];
 
     // TODO: Every sprintf is a write into shared memory. Must be changed into the action pipe sent to (drone.c)
 
     // Disclaimer: Y axis is inverted on tested terminal.
-    if ( key == 'W' || key == 'I')
+    if ( key == 'W')
     {
         x = 0;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
+        sprintf(action_msg, "%d,%d", x, y);
+        write_to_pipe(action_fd[1],action_msg);
         return "UP";
     }
-    if ( key == 'X' || key == ',')
+    if ( key == 'X')
     {
         x = 0;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN";
     }
-    if ( key == 'A' || key == 'J')
+    if ( key == 'A')
     {
         x = -1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "LEFT";
     }
-    if ( key == 'D' || key == 'L')
+    if ( key == 'D')
     {
         x = 1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "RIGHT";
     }
-    if ( key == 'Q' || key == 'U')
+    if ( key == 'Q')
     {
         x = -1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "UP-LEFT";
     }
-    if ( key == 'E' || key == 'O')
+    if ( key == 'E')
     {
         x = 1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "UP-RIGHT";
     }
-    if ( key == 'Z' || key == 'M')
+    if ( key == 'Z')
     {
         x = -1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN-LEFT";
     }
-    if ( key == 'C' || key == '.')
+    if ( key == 'C')
     {
         x = 1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
         return "DOWN-RIGHT";
     }
-    if ( key == 'S' || key == 'K')
+    if ( key == 'S')
     {
         x = 900;    // Special value interpreted by drone.c process
         y = 0;
@@ -192,7 +203,7 @@ char* determineAction(int pressedKey, char *shm_action_fd)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &key_pressing_pfd[0], &key_pressing_pfd[1]);
+    sscanf(argv[1], "%d %d", &key_press_fd[0], &key_press_fd[1]);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 

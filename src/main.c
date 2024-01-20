@@ -10,8 +10,11 @@
 #include <sys/types.h>
 
 
-// Pipes
-int key_pressing_pfd[2];
+// Pipes file descriptors
+int key_press_fd[2];
+int action_fd[2];
+int targets_fd[2];
+int obstacles_fd[2];
 
 // TODO: Execute the new files (targets.c and obstacles.c)
 // TODO: Create all the required pipes.
@@ -26,15 +29,36 @@ int main(int argc, char *argv[])
     pid_t km_pid;
     pid_t drone_pid;
     pid_t wd_pid;
+    // pid_t targets_pid;
+    // pid_t obstacles_pid;
 
-    create_pipes();
+    // Pipes
+    if (pipe(key_press_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
+    if (pipe(action_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
+    if (pipe(targets_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
+    if (pipe(obstacles_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
 
-    // File descriptors for  given files
-    char key_manager_fds[80];
-    char window_fds[80];
+    // Passing file descriptors for pipes used on key_manager.c
+    char key_manager_fds1[40];
+    char key_manager_fds2[40];
+    sprintf(key_manager_fds1, "%d %d", key_press_fd[0], key_press_fd[1]);
+    sprintf(key_manager_fds2, "%d %d", action_fd[0], action_fd[1]);
 
-    sprintf(key_manager_fds, "%d %d", key_pressing_pfd[0], key_pressing_pfd[1]);
-    sprintf(window_fds, "%d %d", key_pressing_pfd[0], key_pressing_pfd[1]);
+    // Passing file descriptors for pipes used on interface.c
+    char window_fds[40];
+    sprintf(window_fds, "%d %d", key_press_fd[0], key_press_fd[1]);
+
+    // Passing file descriptors for pipes used on drone.c
+    char drone_fds[40];
+    sprintf(drone_fds, "%d %d", action_fd[0], action_fd[1]);
+
+    // Passing file descriptors for pipes used on targets.c
+    char targets_fds[40];
+    sprintf(targets_fds, "%d %d", targets_fd[0], targets_fd[1]);
+
+    // Passing file descriptors for pipes used on targets.c
+    char obstacles_fds[40];
+    sprintf(obstacles_fds, "%d %d", obstacles_fd[0], obstacles_fd[1]);
 
 
     int delay = 100000; // Time delay between next spawns
@@ -53,14 +77,26 @@ int main(int argc, char *argv[])
     // p_num++;
     // usleep(delay);
 
+    // /* Targets */
+    // char* targets_args[] = {"konsole", "-e", "./build/key_manager", targets_fds, NULL};
+    // targets_pid = create_child(targets_args[0], targets_args);
+    // p_num++;
+    // usleep(delay);
+
+    // /* Obstacles */
+    // char* obstacles_args[] = {"konsole", "-e", "./build/key_manager", obstacles_fds, NULL};
+    // obstacles_pid = create_child(obstacles_args[0], obstacles_args);
+    // p_num++;
+    // usleep(delay);
+
     /* Keyboard manager */
-    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds, NULL};
+    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds1, key_manager_fds2, NULL};
     km_pid = create_child(km_args[0], km_args);
     p_num++;
     usleep(delay);
 
     /* Drone */
-    char* drone_args[] = {"konsole", "-e", "./build/drone", NULL};
+    char* drone_args[] = {"konsole", "-e", "./build/drone", drone_fds, NULL};
     drone_pid = create_child(drone_args[0], drone_args);
     p_num++;
     usleep(delay);
@@ -92,12 +128,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void create_pipes()
-{
-    pipe(key_pressing_pfd);
-
-    printf("Pipes Succesfully created");
-}
 
 int create_child(const char *program, char **arg_list)
 {

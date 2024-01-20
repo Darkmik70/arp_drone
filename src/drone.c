@@ -10,12 +10,19 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/mman.h>
+#include <sys/select.h>
+#include <sys/stat.h>
 
 #include <fcntl.h>
 #include <math.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <string.h>
+#include <errno.h>
+
+
+// Pipes
+int action_fd[2];
 
 // New Constants 
 const double Coefficient = 400.0; // This was obtained by trial-error
@@ -93,6 +100,11 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
         *ext_forceX -= 0;
         *ext_forceY -= 0;
     }
+    // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
+    if(*ext_forceX > 50){*ext_forceX=0;}
+    if(*ext_forceY > 50){*ext_forceY=0;}
+    if(*ext_forceX < 50){*ext_forceX=0;}
+    if(*ext_forceY < 50){*ext_forceY=0;}
 }
 
 
@@ -121,22 +133,17 @@ int main()
     sigaction(SIGINT, &sa, NULL);
     sigaction (SIGUSR1, &sa, NULL);    
 
-
     publish_pid_to_wd(DRONE_SYM, getpid());
 
- 
     // DELETE: Shared memory for DRONE POSITION
     shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
     ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
-
     // DELETE: Shared memory for DRONE CONTROL - ACTION
     shm_action_fd = shm_open(SHM_ACTION, O_RDWR, 0666);
     ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_action_fd, 0);
-
     // DELETE: semaphores
     sem_pos = sem_open(SEM_POS, 0);
     sem_action = sem_open(SEM_ACTION, 0);
-
 
     usleep(SLEEP_DRONE); // To let the interface.c process execute first write the initial positions.
 
@@ -166,6 +173,37 @@ int main()
         sscanf(ptr_action, "%d,%d", &actionX, &actionY);
         // TODO: READ the pipe for Drone Action (from key_manager.c)
         // *
+
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(action_fd[0], &read_fds);
+
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
+
+        char action_msg[20];
+
+        int ready = select(action_fd[0] + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready == -1) {
+            perror("Error in select");
+        }
+
+        if (ready > 0 && FD_ISSET(action_fd[0], &read_fds)) {
+            char msg[MSG_LEN];
+            ssize_t bytes_read = read(action_fd[0], msg, sizeof(msg));
+            if (bytes_read > 0) {
+                // Null-terminate the received data to make it a valid string
+                msg[bytes_read] = '\0';
+                // Copy the received data to action_msg
+                strncpy(action_msg, msg, sizeof(action_msg));
+                // Print the received string
+                printf("Received ACTION from pipe: %s\n", action_msg);
+                fflush(stdout);
+            }
+        } else { printf("No data available to be read from the pipe.\n");}
+        // END OF TRYING TO ACQUIRE DATA FROM ACTION PIPE FROM (KEY_MANAGER.C)
+
 
         double ext_forceX = 0.0; double ext_forceY = 0.0; // Initial external force
 
@@ -244,6 +282,7 @@ int main()
 
     return 0;
 }
+
 
 void eulerMethod(double *pos, double *vel, double force, double extForce, double *maxPos)
 {

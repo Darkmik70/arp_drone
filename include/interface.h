@@ -31,15 +31,7 @@ typedef struct {
  * @param droneX    Drone's position in x
  * @param droneY    Drone's position in y
  */
-void draw_window(int maxX, int maxY, int droneX, int droneY, Targets *targets, int numTargets, Obstacles *obstacles, int numObstacles, const char *score_msg);
-
-/**
- * Read the input from the keyboard, the pressed keys
- * 
- * @param sharedKey  pointer to shared memory
- * @param semphore   Semaphore to be signalled for unlock
-*/
-void handleInput(int *sharedKey, sem_t *semaphore);
+void draw_window(int droneX, int droneY, Targets *targets, int numTargets, Obstacles *obstacles, int numObstacles, const char *score_msg);
 
 /**
  * Determine what action should be performed from user input.

@@ -70,6 +70,7 @@ int main() {
         }
 
         // TODO: Send the obstacles_msg using pipes to (server.c), and from the server then to (interface.c) and (drone.c)
+        // *
 
     }
 
