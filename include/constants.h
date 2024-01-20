@@ -51,4 +51,17 @@
 #define SIZE_SHM 4096 // General size of Shared memory (in bytes)
 #define FLOAT_TOLERANCE 0.0044 //TODO: ADD WHAT IT MEANS
 
+typedef struct {
+    int total;
+    int x;
+    int y;
+} Obstacles;
+
+typedef struct {
+    int id;
+    int x;
+    int y;
+} Targets;
+
+
 #endif // CONSTANTS_H

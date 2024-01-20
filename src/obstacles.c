@@ -4,37 +4,8 @@
 #include <unistd.h>
 #include <string.h>
 
-// User-defined parameters
-#define MAX_OBSTACLES 7
-#define SCREEN_WIDTH 100
-#define SCREEN_HEIGHT 100
-#define MIN_SPAWN_TIME 2
-#define MAX_SPAWN_TIME 7
-#define WAIT_TIME 1 // How often a new obstacle is created (if the number is below MAX_OBSTACLES)
-
-typedef struct {
-    int x;
-    int y;
-    time_t spawnTime;
-} Obstacle;
-
-void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[]) {
-    // Append the letter O and the total number of obstacles to obstacles_msg
-    sprintf(obstacles_msg, "O[%d]", numObstacles);
-
-    for (int i = 0; i < numObstacles; ++i) {
-        // Append obstacle information to obstacles_msg
-        sprintf(obstacles_msg + strlen(obstacles_msg), "%d,%d", obstacles[i].x, obstacles[i].y);
-
-        // Add a separator if there are more obstacles
-        if (i < numObstacles - 1) {
-            sprintf(obstacles_msg + strlen(obstacles_msg), "|");
-        }
-    }
-    printf("%s\n", obstacles_msg);
-}
-
-int main() {
+int main()
+{
     srand(time(NULL));
 
     Obstacle obstacles[MAX_OBSTACLES];
@@ -75,4 +46,21 @@ int main() {
     }
 
     return 0;
+}
+
+void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[])
+{
+    // Append the letter O and the total number of obstacles to obstacles_msg
+    sprintf(obstacles_msg, "O[%d]", numObstacles);
+
+    for (int i = 0; i < numObstacles; ++i) {
+        // Append obstacle information to obstacles_msg
+        sprintf(obstacles_msg + strlen(obstacles_msg), "%d,%d", obstacles[i].x, obstacles[i].y);
+
+        // Add a separator if there are more obstacles
+        if (i < numObstacles - 1) {
+            sprintf(obstacles_msg + strlen(obstacles_msg), "|");
+        }
+    }
+    printf("%s\n", obstacles_msg);
 }

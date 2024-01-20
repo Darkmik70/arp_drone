@@ -3,23 +3,22 @@
 
 #include <semaphore.h>
 #include <signal.h>
+#include "constants.h"
 
+
+int findLowestID(Targets *targets, int numTargets);
+
+void removeTarget(Targets *targets, int *numTargets, int indexToRemove);
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 void get_args(int argc, char *argv[]);
 
-typedef struct {
-    int total;
-    int x;
-    int y;
-} Obstacles;
+void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets);
 
-typedef struct {
-    int id;
-    int x;
-    int y;
-} Targets;
+int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY);
+
+void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles);
 
 
 /**

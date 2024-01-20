@@ -26,77 +26,6 @@ sem_t *sem_pos;         // Semaphore for drone positions
 // Pipes
 int key_press_fd[2];
 
-// Function to find the index of the target with the lowest ID.
-int findLowestID(Targets *targets, int numTargets) {
-    int lowestID = targets[0].id;
-    int lowestIndex = 0;
-
-    for (int i = 1; i < numTargets; i++) {
-        if (targets[i].id < lowestID) {
-            lowestID = targets[i].id;
-            lowestIndex = i;
-        }
-    }
-
-    return lowestIndex;
-}
-
-
-// Function to remove a target at a given index from the array.
-void removeTarget(Targets *targets, int *numTargets, int indexToRemove) {
-    // Shift elements to fill the gap
-    for (int i = indexToRemove; i < (*numTargets - 1); i++) {
-        targets[i] = targets[i + 1];
-    }
-
-    // Decrement the number of targets
-    (*numTargets)--;
-}
-
-
-// Function to extract the coordinates from the obstacles_msg string into the struct Obstacles.
-void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles) {
-    int totalObstacles;
-    sscanf(obstacles_msg, "O[%d]", &totalObstacles);
-
-    char *token = strtok(obstacles_msg + 4, "|");
-    *numObstacles = 0;
-
-    while (token != NULL && *numObstacles < totalObstacles) {
-        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
-        obstacles[*numObstacles].total = *numObstacles + 1;
-
-        token = strtok(NULL, "|");
-        (*numObstacles)++;
-    }
-}
-
-
-// Function to extract the coordinates from the targets_msg string into the struct Targets.
-void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets) {
-    char *token = strtok(targets_msg + 4, "|");
-    *numTargets = 0;
-
-    while (token != NULL) {
-        sscanf(token, "%d,%d", &targets[*numTargets].x, &targets[*numTargets].y);
-        targets[*numTargets].id = *numTargets + 1;
-
-        token = strtok(NULL, "|");
-        (*numTargets)++;
-    }
-}
-
-
-// Function to check if drone is at the same coordinates as any obstacle.
-int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY) {
-    for (int i = 0; i < numObstacles; i++) {
-        if (obstacles[i].x == droneX && obstacles[i].y == droneY) {
-            return 1;  // Drone is at the same coordinates as an obstacle
-        }
-    }
-    return 0;  // Drone is not at the same coordinates as any obstacle
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -162,10 +91,6 @@ int main(int argc, char *argv[])
         sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);
         // TODO: Obtain this values from a pipe from (drone.c)
         // *
-
-
-
-
 
         /* UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER */
         // Find the index of the target with the lowest ID
@@ -238,6 +163,88 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+
+
+// Function to find the index of the target with the lowest ID.
+int findLowestID(Targets *targets, int numTargets) {
+    int lowestID = targets[0].id;
+    int lowestIndex = 0;
+
+    for (int i = 1; i < numTargets; i++) {
+        if (targets[i].id < lowestID) {
+            lowestID = targets[i].id;
+            lowestIndex = i;
+        }
+    }
+
+    return lowestIndex;
+}
+
+
+// Function to remove a target at a given index from the array.
+void removeTarget(Targets *targets, int *numTargets, int indexToRemove)
+{
+    // Shift elements to fill the gap
+    for (int i = indexToRemove; i < (*numTargets - 1); i++)
+    {
+        targets[i] = targets[i + 1];
+    }
+
+    // Decrement the number of targets
+    (*numTargets)--;
+}
+
+
+// Function to extract the coordinates from the obstacles_msg string into the struct Obstacles.
+void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
+{
+    int totalObstacles;
+    sscanf(obstacles_msg, "O[%d]", &totalObstacles);
+
+    char *token = strtok(obstacles_msg + 4, "|");
+    *numObstacles = 0;
+
+    while (token != NULL && *numObstacles < totalObstacles)
+    {
+        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
+        obstacles[*numObstacles].total = *numObstacles + 1;
+
+        token = strtok(NULL, "|");
+        (*numObstacles)++;
+    }
+}
+
+
+// Function to extract the coordinates from the targets_msg string into the struct Targets.
+void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets)
+{
+    char *token = strtok(targets_msg + 4, "|");
+    *numTargets = 0;
+
+    while (token != NULL)
+    {
+        sscanf(token, "%d,%d", &targets[*numTargets].x, &targets[*numTargets].y);
+        targets[*numTargets].id = *numTargets + 1;
+
+        token = strtok(NULL, "|");
+        (*numTargets)++;
+    }
+}
+
+
+// Function to check if drone is at the same coordinates as any obstacle.
+int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY)
+{
+    for (int i = 0; i < numObstacles; i++) {
+        if (obstacles[i].x == droneX && obstacles[i].y == droneY)
+        {
+            return 1;  // Drone is at the same coordinates as an obstacle
+        }
+    }
+    return 0;  // Drone is not at the same coordinates as any obstacle
+}
+
+
 void get_args(int argc, char *argv[])
 {
     sscanf(argv[1], "%d %d", &key_press_fd[0], &key_press_fd[1]);
@@ -246,7 +253,7 @@ void get_args(int argc, char *argv[])
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 
 {
     // printf(" Received signal number: %d \n", signo);
-    if( signo == SIGINT)
+    if ( signo == SIGINT)
     {
         printf("Caught SIGINT \n");
         // close all semaphores
@@ -267,7 +274,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 }
 
 void draw_window(int droneX, int droneY, Targets *targets, int numTargets,
-                 Obstacles *obstacles, int numObstacles, const char *score_msg) {
+                 Obstacles *obstacles, int numObstacles, const char *score_msg)
+{
     clear();
 
     /* get dimensions of the screen */

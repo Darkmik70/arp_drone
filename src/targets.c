@@ -12,22 +12,7 @@ THIS IS MISSING:
 #include <time.h>
 #include <unistd.h>
 
-// User-defined parameters
-#define SCREEN_WIDTH 168
-#define SCREEN_HEIGHT 44
-#define MAX_TARGETS 8
 
-// Structure to represent a target
-typedef struct {
-    int x;
-    int y;
-} Target;
-
-// Function to generate random coordinates within a given sector
-void generateRandomCoordinates(int sectorWidth, int sectorHeight, int *x, int *y) {
-    *x = rand() % sectorWidth;
-    *y = rand() % sectorHeight;
-}
 
 int main() {
     int counter = 0;
@@ -101,6 +86,13 @@ int main() {
         // Temporary Delay (TEMPORARY)
         sleep(1);
     }
-    
     return 0;
+}
+
+
+// Function to generate random coordinates within a given sector
+void generateRandomCoordinates(int sectorWidth, int sectorHeight, int *x, int *y)
+{
+    *x = rand() % sectorWidth;
+    *y = rand() % sectorHeight;
 }

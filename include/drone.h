@@ -1,6 +1,7 @@
 #ifndef DRONE_H
 #define DRONE_H
 
+#include <constants.h>
 #include <signal.h>
 
 #define SLEEP_DRONE 100000  // To let the interface.c process execute first write the initial positions.
@@ -9,12 +10,6 @@
 #define DAMPING 1 // Damping coefficient
 #define D_T 0.1 // Time interval in seconds
 #define F_MAX 30.0 // Maximal force that can be acted on the drone's motors
-
-typedef struct {
-    int total;
-    int x;
-    int y;
-} Obstacles;
 
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
