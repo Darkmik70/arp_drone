@@ -1,5 +1,7 @@
 #ifndef DRONE_H
-#define DRONE_H   
+#define DRONE_H
+
+#include <signal.h>
 
 #define SLEEP_DRONE 100000  // To let the interface.c process execute first write the initial positions.
 
@@ -13,6 +15,14 @@ typedef struct {
     int x;
     int y;
 } Obstacles;
+
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context);
+
+void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
+                        double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY);
+
+void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles);
 
 void eulerMethod(double *pos, double *vel, double force, double extForce, double *maxPos);
 void stepMethod(int *x, int *y, int actionX, int actionY);  

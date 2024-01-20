@@ -39,91 +39,6 @@ sem_t *sem_action;          // semaphore for drone action
 
 
 
-void signal_handler(int signo, siginfo_t *siginfo, void *context) 
-{
-    //printf("Received signal number: %d \n", signo);
-    if( signo == SIGINT)
-    {
-        printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_action);
-
-        printf("Succesfully closed all semaphores\n");
-        exit(1);
-    }
-    if (signo == SIGUSR1)
-    {
-        // Get watchdog's pid
-        pid_t wd_pid = siginfo->si_pid;
-        // inform on your condition
-        kill(wd_pid, SIGUSR2);
-        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
-    }
-}
-
-
-void calculateExtForce(double droneX, double droneY, double targetX, double targetY, double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY) {
-
-    // ***Calculate ATTRACTION force towards the target***
-    double distanceToTarget = sqrt(pow(targetX - droneX, 2) + pow(targetY - droneY, 2));
-    double angleToTarget = atan2(targetY - droneY, targetX - droneX);
-
-    // To avoid division by zero or extremely high forces
-    if (distanceToTarget < minDistance) {
-        distanceToTarget = minDistance; // Keep the force value as it were on the minDistance
-    }
-    // Bellow 5m the attraction force will be calculated.
-    else if (distanceToTarget < startDistance){
-    *ext_forceX += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * cos(angleToTarget);
-    *ext_forceY += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * sin(angleToTarget);
-    }
-    else{
-        *ext_forceX += 0;
-        *ext_forceY += 0;  
-    }
-
-
-    // ***Calculate REPULSION force from the obstacle***
-    double distanceToObstacle = sqrt(pow(obstacleX - droneX, 2) + pow(obstacleY - droneY, 2));
-    double angleToObstacle = atan2(obstacleY - droneY, obstacleX - droneX);
-
-    // To avoid division by zero or extremely high forces
-    if (distanceToObstacle < minDistance) {
-            distanceToObstacle = minDistance; // Keep the force value as it were on the minDistance
-        }
-    // Bellow 5m the repulsion force will be calculated
-    else if (distanceToObstacle < startDistance){
-    *ext_forceX -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * cos(angleToObstacle);
-    *ext_forceY -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * sin(angleToObstacle);
-    }
-    else{
-        *ext_forceX -= 0;
-        *ext_forceY -= 0;
-    }
-    // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
-    if(*ext_forceX > 50){*ext_forceX=0;}
-    if(*ext_forceY > 50){*ext_forceY=0;}
-    if(*ext_forceX < 50){*ext_forceX=0;}
-    if(*ext_forceY < 50){*ext_forceY=0;}
-}
-
-
-void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles) {
-    int totalObstacles;
-    sscanf(obstacles_msg, "O[%d]", &totalObstacles);
-
-    char *token = strtok(obstacles_msg + 4, "|");
-    *numObstacles = 0;
-
-    while (token != NULL && *numObstacles < totalObstacles) {
-        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
-        obstacles[*numObstacles].total = *numObstacles + 1;
-
-        token = strtok(NULL, "|");
-        (*numObstacles)++;
-    }
-}
-
 
 int main() 
 {
@@ -281,6 +196,95 @@ int main()
     sem_close(sem_action);
 
     return 0;
+}
+
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    //printf("Received signal number: %d \n", signo);
+    if( signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        // close all semaphores
+        sem_close(sem_action);
+
+        printf("Succesfully closed all semaphores\n");
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
+}
+
+
+void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
+                        double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY)
+{
+
+    // ***Calculate ATTRACTION force towards the target***
+    double distanceToTarget = sqrt(pow(targetX - droneX, 2) + pow(targetY - droneY, 2));
+    double angleToTarget = atan2(targetY - droneY, targetX - droneX);
+
+    // To avoid division by zero or extremely high forces
+    if (distanceToTarget < minDistance) {
+        distanceToTarget = minDistance; // Keep the force value as it were on the minDistance
+    }
+    // Bellow 5m the attraction force will be calculated.
+    else if (distanceToTarget < startDistance){
+    *ext_forceX += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * cos(angleToTarget);
+    *ext_forceY += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * sin(angleToTarget);
+    }
+    else{
+        *ext_forceX += 0;
+        *ext_forceY += 0;  
+    }
+
+
+    // ***Calculate REPULSION force from the obstacle***
+    double distanceToObstacle = sqrt(pow(obstacleX - droneX, 2) + pow(obstacleY - droneY, 2));
+    double angleToObstacle = atan2(obstacleY - droneY, obstacleX - droneX);
+
+    // To avoid division by zero or extremely high forces
+    if (distanceToObstacle < minDistance) {
+            distanceToObstacle = minDistance; // Keep the force value as it were on the minDistance
+        }
+    // Bellow 5m the repulsion force will be calculated
+    else if (distanceToObstacle < startDistance){
+    *ext_forceX -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * cos(angleToObstacle);
+    *ext_forceY -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * sin(angleToObstacle);
+    }
+    else{
+        *ext_forceX -= 0;
+        *ext_forceY -= 0;
+    }
+    // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
+    if(*ext_forceX > 50){*ext_forceX=0;}
+    if(*ext_forceY > 50){*ext_forceY=0;}
+    if(*ext_forceX < 50){*ext_forceX=0;}
+    if(*ext_forceY < 50){*ext_forceY=0;}
+}
+
+
+void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
+{
+    int totalObstacles;
+    sscanf(obstacles_msg, "O[%d]", &totalObstacles);
+
+    char *token = strtok(obstacles_msg + 4, "|");
+    *numObstacles = 0;
+
+    while (token != NULL && *numObstacles < totalObstacles) {
+        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
+        obstacles[*numObstacles].total = *numObstacles + 1;
+
+        token = strtok(NULL, "|");
+        (*numObstacles)++;
+    }
 }
 
 

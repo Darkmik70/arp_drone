@@ -29,8 +29,9 @@ int main(int argc, char *argv[])
     pid_t km_pid;
     pid_t drone_pid;
     pid_t wd_pid;
-    // pid_t targets_pid;
-    // pid_t obstacles_pid;
+    pid_t logger_pid;
+    pid_t targets_pid;
+    pid_t obstacles_pid;
 
     // Pipes
     if (pipe(key_press_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
@@ -73,21 +74,21 @@ int main(int argc, char *argv[])
 
     // /* Logger */ 
     // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
-    // window_pid = create_child(logger_args[0], logger_args);
+    // logger_pid = create_child(logger_args[0], logger_args);
     // p_num++;
     // usleep(delay);
 
-    // /* Targets */
-    // char* targets_args[] = {"konsole", "-e", "./build/key_manager", targets_fds, NULL};
-    // targets_pid = create_child(targets_args[0], targets_args);
-    // p_num++;
-    // usleep(delay);
+    /* Targets */
+    char* targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
+    targets_pid = create_child(targets_args[0], targets_args);
+    p_num++;
+    usleep(delay);
 
-    // /* Obstacles */
-    // char* obstacles_args[] = {"konsole", "-e", "./build/key_manager", obstacles_fds, NULL};
-    // obstacles_pid = create_child(obstacles_args[0], obstacles_args);
-    // p_num++;
-    // usleep(delay);
+    /* Obstacles */
+    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", obstacles_fds, NULL};
+    obstacles_pid = create_child(obstacles_args[0], obstacles_args);
+    p_num++;
+    usleep(delay);
 
     /* Keyboard manager */
     char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds1, key_manager_fds2, NULL};

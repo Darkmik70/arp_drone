@@ -60,14 +60,10 @@ int main(int argc, char *argv[])
         sem_post(sem_logs);
     }
     
-    // close all connections
-    sem_close(sem_logs);
-    // unlink semaphores
-    sem_unlink(SEM_LOGS);
-    // close fd
-    close(shm_logs_fd);
-    // Close the file
-    fclose(logfile);
+    sem_close(sem_logs);         // close all connections
+    sem_unlink(SEM_LOGS);        // unlink semaphores
+    close(shm_logs_fd);          // close fd
+    fclose(logfile);             // Close the file
 
     return 0;
 }

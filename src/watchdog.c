@@ -102,31 +102,32 @@ int main(int argc, char* argv[])
 
     while(1)
     {
-        // increment counter
-        cnt_server++;
-        cnt_window++;
-        cnt_km++;
-        cnt_drone++;
-        /* cnt_logger++; */
+        // FIXME
+        // // increment counter
+        // cnt_server++;
+        // cnt_window++;
+        // cnt_km++;
+        // cnt_drone++;
+        // /* cnt_logger++; */
 
-        /* Monitor health of all of the processes */
-        kill(server_pid,SIGUSR1);
-        usleep(500);
-        kill(window_pid, SIGUSR1);
-        usleep(500);
-        kill(km_pid, SIGUSR1);
-        usleep(500);
-        kill(drone_pid, SIGUSR1);
-        usleep(500);
-        /* kill(logger_pid, SIGUSR1); */
+        // /* Monitor health of all of the processes */
+        // kill(server_pid,SIGUSR1);
+        // usleep(500);
+        // kill(window_pid, SIGUSR1);
+        // usleep(500);
+        // kill(km_pid, SIGUSR1);
+        // usleep(500);
+        // kill(drone_pid, SIGUSR1);
+        // usleep(500);
+        // /* kill(logger_pid, SIGUSR1); */
 
 
 
-        // If any of the processess does not respond in given timeframe, close them all
-        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD /*|| cnt_logger > THRESHOLD */)
-        {
-            send_sigint_to_all();
-        }
+        // // If any of the processess does not respond in given timeframe, close them all
+        // if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD /*|| cnt_logger > THRESHOLD */)
+        // {
+        //     send_sigint_to_all();
+        // }
         usleep(100000);
     }
 
