@@ -23,11 +23,7 @@
 
 // Pipes working with the server
 int server_drone[2];
-
-/* Global variables */
-int shm_pos_fd;             // File descriptor for drone position shm
-char *ptr_pos;              // Shared memory for Drone Position 
-sem_t *sem_pos;             // semaphore for drone positions
+int drone_server[2];
 
 int decypher_message(const char *server_msg) {
     if (server_msg[0] == 'K') {
@@ -52,32 +48,19 @@ int main(int argc, char *argv[])
 
     publish_pid_to_wd(DRONE_SYM, getpid());
 
-    // DELETE: Shared memory for DRONE POSITION
-    shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
-    ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
-    // DELETE: semaphores
-    sem_pos = sem_open(SEM_POS, 0);
+    usleep(SLEEP_DRONE); // To let the interface.c process execute first and write the initial positions.
 
-    usleep(SLEEP_DRONE); // To let the interface.c process execute first write the initial positions.
-
+    // Variable declaration
     int x; int y;
-    int maxX; int maxY;
-    // DELETE: Shared memory read for drone position.
-    sscanf(ptr_pos, "%d,%d,%d,%d", &x, &y, &maxX, &maxY); 
-    // TODO: Using pipes obtain the initial drone position values and screen dimensions (from interface.c)
-    // *
-
-    // Variables for euler method
+    int screen_size_x; int screen_size_y;
     int actionX; int actionY;
     double pos_x; double pos_y;
     // Initial values
     double Vx = 0.0; double Vy = 0.0;
     double forceX = 0.0; double forceY = 0.0;
 
-    int counter = 0;
     while (1)
     {
-        int xi; int yi;
         /* READ the pipe from SERVER*/
         fd_set read_fds;
         FD_ZERO(&read_fds);
@@ -86,36 +69,32 @@ int main(int argc, char *argv[])
         timeout.tv_sec = 0;
         timeout.tv_usec = 0;
         
-        char server_msg[20];
+        char server_msg[MSG_LEN];
 
         int ready = select(server_drone[0] + 1, &read_fds, NULL, NULL, &timeout);
         if (ready == -1) {perror("Error in select");}
 
         if (ready > 0 && FD_ISSET(server_drone[0], &read_fds)) {
-            char msg[MSG_LEN];
-            ssize_t bytes_read = read(server_drone[0], msg, sizeof(msg));
+            ssize_t bytes_read = read(server_drone[0], server_msg, MSG_LEN);
             if (bytes_read > 0){
-                msg[bytes_read] = '\0';
-                strncpy(server_msg, msg, sizeof(server_msg));
                 if(decypher_message(server_msg) == 1){
                     sscanf(server_msg, "K:%d,%d", &actionX, &actionY);
                 }
                 else if(decypher_message(server_msg) == 2){
-                    sscanf(server_msg, "I1:%d,%d,%d,%d", &xi, &yi, &maxX, &maxY);
+                    sscanf(server_msg, "I1:%d,%d,%d,%d", &x, &y, &screen_size_x, &screen_size_y);
                     printf("Obtained initial parameters from server: %s\n", server_msg);
+                    pos_x = (double)x;
+                    pos_y = (double)y;
+                    fflush(stdout);
                 }
                 else if(decypher_message(server_msg) == 3){
-                    sscanf(server_msg, "I2:%d,%d", &maxX, &maxY);
+                    sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
                     printf("Changed screen dimensions to: %s\n", server_msg);
+                    fflush(stdout);
                 }
             }
         } else { actionX = 0; actionY = 0;}
-  
-        if(counter == 0){
-            pos_x = (double)xi;
-            pos_y = (double)yi;
-            counter++;
-        }
+
 
         /* Convert the action number read into force for the drone */ 
 
@@ -157,10 +136,10 @@ int main(int argc, char *argv[])
         }
         
         // Using the euler method to obtain the new position for the drone, according to the forces.
-        double maxX_f = (double)maxX;
-        double maxY_f = (double)maxY;
-        eulerMethod(&pos_x, &Vx, forceX, ext_forceX, &maxX_f);
-        eulerMethod(&pos_y, &Vy, forceY, ext_forceY, &maxY_f);
+        double max_x = (double)screen_size_x;
+        double max_y = (double)screen_size_y;
+        eulerMethod(&pos_x, &Vx, forceX, ext_forceX, &max_x);
+        eulerMethod(&pos_y, &Vy, forceY, ext_forceY, &max_y);
 
         // Only print the data ONLY when there is movement from the drone.
         if (fabs(Vx) > FLOAT_TOLERANCE || fabs(Vy) > FLOAT_TOLERANCE)
@@ -174,20 +153,15 @@ int main(int argc, char *argv[])
 
         int xf = (int)round(pos_x);
         int yf = (int)round(pos_y);
-        // DELETE: Write new drone position to shared memory
-        sprintf(ptr_pos, "%d,%d,%d,%d", xf, yf, maxX, maxY);
-        // TODO: Using pipes write this data so it can be read from (interface.c)
-        // *
 
-        // DELETE: Semaphore post
-        sem_post(sem_pos);
-        
+        // Using pipes write this data so it can be read from (interface.c)
+        char position_msg[MSG_LEN];
+        sprintf(position_msg, "D:%d,%d", xf, yf);
+        write_to_pipe(drone_server[1], position_msg);
+
         usleep(D_T * 1e6); // 0.1 s
     }
 
-    // DELETE: Close shared memories and semaphores
-    close(shm_pos_fd);
-    sem_close(sem_pos);
     return 0;
 }
 
@@ -213,7 +187,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d", &server_drone[0]);
+    sscanf(argv[1], "%d %d", &server_drone[0], &drone_server[1]);
 }
 
 void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
@@ -257,10 +231,10 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
         *ext_forceY -= 0;
     }
     // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
-    // if(*ext_forceX > 50){*ext_forceX=0;}
-    // if(*ext_forceY > 50){*ext_forceY=0;}
-    // if(*ext_forceX < 50){*ext_forceX=0;}
-    // if(*ext_forceY < 50){*ext_forceY=0;}
+    // if(*ext_forceX > 50.0){*ext_forceX=0;}
+    // if(*ext_forceY > 50.0){*ext_forceY=0;}
+    // if(*ext_forceX < 50.0){*ext_forceX=0;}
+    // if(*ext_forceY < 50.0){*ext_forceY=0;}
 }
 
 

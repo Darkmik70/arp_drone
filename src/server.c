@@ -18,10 +18,13 @@
 #include <string.h>
 #include <errno.h>
 
+
 // Pipes
 int km_server[2];
 int server_drone[2];
 int interface_server[2];
+int drone_server[2];
+int server_interface[2];
 
 // GLOBAL VARIABLES
 void *ptr_wd;                           // Shared memory for WD
@@ -107,19 +110,20 @@ int main(int argc, char *argv[])
     
     while (1)
     {
-        /* Handle pipes for action (km -> server -> drone) */
-        fd_set read_km_server;
-        FD_ZERO(&read_km_server);
-        FD_SET(km_server[0], &read_km_server);
+        /* Handle pipe from key_manager.c */
+        fd_set read_km;
+        FD_ZERO(&read_km);
+        FD_SET(km_server[0], &read_km);
 
         char action_msg[MSG_LEN];
 
-        int ready_km = select(km_server[0] + 1, &read_km_server, NULL, NULL, &timeout);
+        int ready_km = select(km_server[0] + 1, &read_km, NULL, NULL, &timeout);
         if (ready_km == -1) {perror("Error in select");}
 
-        if (ready_km > 0 && FD_ISSET(km_server[0], &read_km_server)) {
-            ssize_t bytes_read = read(km_server[0], action_msg, sizeof(action_msg));
-            if (bytes_read > 0) {
+        if (ready_km > 0 && FD_ISSET(km_server[0], &read_km)) {
+            ssize_t bytes_read_km = read(km_server[0], action_msg, MSG_LEN);
+            if (bytes_read_km > 0) {
+                // Read acknowledgement
                 printf("RECEIVED %s from key_manager.c\n", action_msg);
                 fflush(stdout);
                 // Response
@@ -129,34 +133,57 @@ int main(int argc, char *argv[])
                 printf("SENT %s to drone.c\n", response_action_msg);
                 fflush(stdout);
             }
-        } else {sleep(0);}
+        }
 
-        /*Handle pipes for interface and drone communication*/
-        fd_set read_interface_server;
-        FD_ZERO(&read_interface_server);
-        FD_SET(interface_server[0], &read_interface_server);
+        /* Handle pipe from interface.c */
+        fd_set read_interface;
+        FD_ZERO(&read_interface);
+        FD_SET(interface_server[0], &read_interface);
         
         char initial_msg[MSG_LEN];
 
-        int ready_drone = select(interface_server[0] + 1, &read_interface_server, NULL, NULL, &timeout);
-        if (ready_drone == -1) {perror("Error in select");}
+        int ready_interface = select(interface_server[0] + 1, &read_interface, NULL, NULL, &timeout);
+        if (ready_interface == -1) {perror("Error in select");}
 
-        if (ready_drone > 0 && FD_ISSET(interface_server[0], &read_interface_server)) {
-            ssize_t bytes_read = read(interface_server[0], initial_msg, sizeof(initial_msg));
-            if (bytes_read > 0) {
+        if (ready_interface > 0 && FD_ISSET(interface_server[0], &read_interface)) {
+            ssize_t bytes_read_interface = read(interface_server[0], initial_msg, MSG_LEN);
+            if (bytes_read_interface > 0) {
+                // Read acknowledgement
                 printf("RECEIVED %s from interface.c\n", initial_msg);
                 fflush(stdout);
                 // Response
-                char response_initial_msg[MSG_LEN*2];
-                sprintf(response_initial_msg, "%s", initial_msg);
-                write_to_pipe(server_drone[1], response_initial_msg);
-                printf("SENT %s to drone.c\n", response_initial_msg);
+                write_to_pipe(server_drone[1], initial_msg);
+                printf("SENT %s to drone.c\n", initial_msg);
                 fflush(stdout);
             }
-        } else {sleep(0);}
+        }
+
+        /* Handle pipe from drone.c */
+        fd_set read_drone;
+        FD_ZERO(&read_interface);
+        FD_SET(drone_server[0], &read_drone);
+        
+        char position_msg[MSG_LEN];
+
+        int ready_drone = select(drone_server[0] + 1, &read_drone, NULL, NULL, &timeout);
+        if (ready_drone == -1) {perror("Error in select");}
+
+        if (ready_drone > 0 && FD_ISSET(drone_server[0], &read_drone)) {
+            ssize_t bytes_read_drone = read(drone_server[0], position_msg, MSG_LEN);
+            if (bytes_read_drone > 0) {
+                // Read acknowledgement
+                printf("RECEIVED %s from drone.c\n", position_msg);
+                fflush(stdout);
+                // Response
+                write_to_pipe(server_interface[1], position_msg);
+                printf("SENT %s to interface.c\n", position_msg);
+                fflush(stdout);
+            }
+            else if (bytes_read_drone == -1){perror("Read pipe drone_server");}
+        }
 
         // Busy sleep friend
-        usleep(10000);
+        usleep(5000);
     }
 
     // Close and unlink the semaphores
@@ -167,8 +194,8 @@ int main(int argc, char *argv[])
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d", &km_server[0], &server_drone[1], 
-    &interface_server[0]);
+    sscanf(argv[1], "%d %d %d %d %d", &km_server[0], &server_drone[1], 
+    &interface_server[0], &drone_server[0], &server_interface[1]);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 

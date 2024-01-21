@@ -25,8 +25,6 @@ void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstac
  * Draw the window on the screen.
  * Draws dynamical box which adapts to the actual size of window
  *
- * @param maxX size in x
- * @param maxY size in Y
  * @param droneX    Drone's position in x
  * @param droneY    Drone's position in y
  */

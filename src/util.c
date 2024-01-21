@@ -45,9 +45,9 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
 
 
 // Pipe functions
-void write_to_pipe(int pipe_fd, char *message)
+void write_to_pipe(int pipe_fd, char message[])
 {
-    ssize_t bytes_written = write(pipe_fd, message, sizeof(message));
+    ssize_t bytes_written = write(pipe_fd, message, MSG_LEN );
     if (bytes_written == -1)
     {
         perror("Write went wrong");
