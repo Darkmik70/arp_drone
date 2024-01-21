@@ -21,7 +21,7 @@
 #include <errno.h>
 
 
-// Pipes working with server
+// Pipes working with the server
 int server_drone[2];
 
 /* Global variables */
@@ -29,6 +29,16 @@ int shm_pos_fd;             // File descriptor for drone position shm
 char *ptr_pos;              // Shared memory for Drone Position 
 sem_t *sem_pos;             // semaphore for drone positions
 
+int decypher_message(const char *server_msg) {
+    if (server_msg[0] == 'K') {
+        return 1;
+    } else if (server_msg[0] == 'I' && server_msg[1] == '1') {
+        return 2;
+    } else if (server_msg[0] == 'I' && server_msg[1] == '2') {
+        return 3;
+    }
+    else {return 0;}
+}
 
 int main(int argc, char *argv[]) 
 {
@@ -58,20 +68,17 @@ int main(int argc, char *argv[])
     // *
 
     // Variables for euler method
-    double pos_x = (double)x;
-    double pos_y = (double)y;
-    double Vx = 0.0; double Vy = 0.0;    // Initial velocity
-    double forceX = 0.0; double forceY = 0.0; // Initial drone force
+    int actionX; int actionY;
+    double pos_x; double pos_y;
+    // Initial values
+    double Vx = 0.0; double Vy = 0.0;
+    double forceX = 0.0; double forceY = 0.0;
 
+    int counter = 0;
     while (1)
     {
         int xi; int yi;
-        // DELETE: Reading data from shared memory - Drone Position (from interface.c)
-        sscanf(ptr_pos, "%d,%d,%d,%d", &xi, &yi, &maxX, &maxY);
-        // TODO: READ the pipe for Drone Position (from interface.c)
-        // *
-
-        /* READ the pipe for Drone Action (from key_manager.c)*/
+        /* READ the pipe from SERVER*/
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(server_drone[0], &read_fds);
@@ -79,9 +86,7 @@ int main(int argc, char *argv[])
         timeout.tv_sec = 0;
         timeout.tv_usec = 0;
         
-        char action_msg[20];
-        int actionX; 
-        int actionY;
+        char server_msg[20];
 
         int ready = select(server_drone[0] + 1, &read_fds, NULL, NULL, &timeout);
         if (ready == -1) {perror("Error in select");}
@@ -89,14 +94,28 @@ int main(int argc, char *argv[])
         if (ready > 0 && FD_ISSET(server_drone[0], &read_fds)) {
             char msg[MSG_LEN];
             ssize_t bytes_read = read(server_drone[0], msg, sizeof(msg));
-            if (bytes_read > 0) {
+            if (bytes_read > 0){
                 msg[bytes_read] = '\0';
-                strncpy(action_msg, msg, sizeof(action_msg));
-                sscanf(action_msg, "%d,%d", &actionX, &actionY);
-                fflush(stdout);
+                strncpy(server_msg, msg, sizeof(server_msg));
+                if(decypher_message(server_msg) == 1){
+                    sscanf(server_msg, "K:%d,%d", &actionX, &actionY);
+                }
+                else if(decypher_message(server_msg) == 2){
+                    sscanf(server_msg, "I1:%d,%d,%d,%d", &xi, &yi, &maxX, &maxY);
+                    printf("Obtained initial parameters from server: %s\n", server_msg);
+                }
+                else if(decypher_message(server_msg) == 3){
+                    sscanf(server_msg, "I2:%d,%d", &maxX, &maxY);
+                    printf("Changed screen dimensions to: %s\n", server_msg);
+                }
             }
         } else { actionX = 0; actionY = 0;}
   
+        if(counter == 0){
+            pos_x = (double)xi;
+            pos_y = (double)yi;
+            counter++;
+        }
 
         /* Convert the action number read into force for the drone */ 
 
@@ -137,7 +156,6 @@ int main(int argc, char *argv[])
             calculateExtForce(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
         }
         
-
         // Using the euler method to obtain the new position for the drone, according to the forces.
         double maxX_f = (double)maxX;
         double maxY_f = (double)maxY;

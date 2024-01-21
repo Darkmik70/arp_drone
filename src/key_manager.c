@@ -30,7 +30,7 @@ sem_t *sem_action;          // Semaphore for drone positions
 // Serverless pipes
 int key_press_fd[2];
 
-// Pipes working with server
+// Pipes working with the server
 int km_server[2];
 
 int main(int argc, char *argv[]) 
@@ -82,7 +82,6 @@ int main(int argc, char *argv[])
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
         
         char *action = determineAction(pressedKey, ptr_action);
-        printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
 
         // TEMPORAL/DELETE AFTER: TESTING DATA SENT TO PIPE ACTION

@@ -23,9 +23,11 @@ int shm_pos_fd;         // File descriptor for drone pos shm
 char *ptr_pos;          // Shared memory for Drone Position
 sem_t *sem_pos;         // Semaphore for drone positions
 
-// Pipes
+// Serverless pipes
 int key_press_fd[2];
 
+// Pipes working with the server
+int interface_server[2];
 
 int main(int argc, char *argv[])
 {
@@ -58,13 +60,21 @@ int main(int argc, char *argv[])
     // Obtain the screen dimensions
     int maxY, maxX;
     getmaxyx(stdscr, maxY, maxX); 
+
     // Initial drone position will be the middle of the screen.
     int droneX = maxX / 2;
     int droneY = maxY / 2;
+
     // DELETE: Write initial drone position in its corresponding shared memory
     sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
+    
     // TODO: Write the position data into a pipe to be read from (drone.c)
     // *
+
+    char initial_msg[MSG_LEN];
+    //sprintf(initial_msg, "I1:%d,%d,%d,%d", droneX, droneY, maxX, maxY);
+    sprintf(initial_msg, "123456789012345");
+    write_to_pipe(interface_server[1], initial_msg);
 
 
     // TODO: Should be obtained from a pipe from (server.c), that gets it from (targets.c)
@@ -164,6 +174,11 @@ int main(int argc, char *argv[])
 }
 
 
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d", &key_press_fd[1], &interface_server[1]);
+}
+
 
 // Function to find the index of the target with the lowest ID.
 int findLowestID(Targets *targets, int numTargets) {
@@ -242,12 +257,6 @@ int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int d
         }
     }
     return 0;  // Drone is not at the same coordinates as any obstacle
-}
-
-
-void get_args(int argc, char *argv[])
-{
-    sscanf(argv[1], "%d", &key_press_fd[1]);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 
