@@ -21,27 +21,19 @@
 #include <errno.h>
 
 
-// Pipes
-int action_fd[2];
-
-// New Constants 
-const double Coefficient = 400.0; // This was obtained by trial-error
-double minDistance = 2.0;
-double startDistance = 5.0;
+// Pipes working with server
+int server_drone[2];
 
 /* Global variables */
 int shm_pos_fd;             // File descriptor for drone position shm
-int shm_action_fd;          // File descriptor for actions shm
 char *ptr_pos;              // Shared memory for Drone Position 
-char *ptr_action;           // Shared memory for drone action 
 sem_t *sem_pos;             // semaphore for drone positions
-sem_t *sem_action;          // semaphore for drone action
 
 
-
-
-int main() 
+int main(int argc, char *argv[]) 
 {
+    get_args(argc, argv);
+
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
@@ -53,18 +45,13 @@ int main()
     // DELETE: Shared memory for DRONE POSITION
     shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
     ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
-    // DELETE: Shared memory for DRONE CONTROL - ACTION
-    shm_action_fd = shm_open(SHM_ACTION, O_RDWR, 0666);
-    ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_action_fd, 0);
     // DELETE: semaphores
     sem_pos = sem_open(SEM_POS, 0);
-    sem_action = sem_open(SEM_ACTION, 0);
 
     usleep(SLEEP_DRONE); // To let the interface.c process execute first write the initial positions.
 
     int x; int y;
     int maxX; int maxY;
-    int actionX; int actionY;
     // DELETE: Shared memory read for drone position.
     sscanf(ptr_pos, "%d,%d,%d,%d", &x, &y, &maxX, &maxY); 
     // TODO: Using pipes obtain the initial drone position values and screen dimensions (from interface.c)
@@ -84,45 +71,39 @@ int main()
         // TODO: READ the pipe for Drone Position (from interface.c)
         // *
 
-        // DELETE: Reading data from shared memory - Drone Action (from key_manager.c)
-        sscanf(ptr_action, "%d,%d", &actionX, &actionY);
-        // TODO: READ the pipe for Drone Action (from key_manager.c)
-        // *
-
+        /* READ the pipe for Drone Action (from key_manager.c)*/
         fd_set read_fds;
         FD_ZERO(&read_fds);
-        FD_SET(action_fd[0], &read_fds);
-
+        FD_SET(server_drone[0], &read_fds);
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = 0;
-
+        
         char action_msg[20];
+        int actionX; 
+        int actionY;
 
-        int ready = select(action_fd[0] + 1, &read_fds, NULL, NULL, &timeout);
-        if (ready == -1) {
-            perror("Error in select");
-        }
+        int ready = select(server_drone[0] + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready == -1) {perror("Error in select");}
 
-        if (ready > 0 && FD_ISSET(action_fd[0], &read_fds)) {
+        if (ready > 0 && FD_ISSET(server_drone[0], &read_fds)) {
             char msg[MSG_LEN];
-            ssize_t bytes_read = read(action_fd[0], msg, sizeof(msg));
+            ssize_t bytes_read = read(server_drone[0], msg, sizeof(msg));
             if (bytes_read > 0) {
-                // Null-terminate the received data to make it a valid string
                 msg[bytes_read] = '\0';
-                // Copy the received data to action_msg
                 strncpy(action_msg, msg, sizeof(action_msg));
-                // Print the received string
-                printf("Received ACTION from pipe: %s\n", action_msg);
+                sscanf(action_msg, "%d,%d", &actionX, &actionY);
                 fflush(stdout);
             }
-        } else { printf("No data available to be read from the pipe.\n");}
-        // END OF TRYING TO ACQUIRE DATA FROM ACTION PIPE FROM (KEY_MANAGER.C)
-
-
-        double ext_forceX = 0.0; double ext_forceY = 0.0; // Initial external force
+        } else { actionX = 0; actionY = 0;}
+  
 
         /* Convert the action number read into force for the drone */ 
+
+        // Initial external force
+        double ext_forceX = 0.0; 
+        double ext_forceY = 0.0; 
+
         if (abs(actionX) <= 1.0) // Only values between -1 to 1 are used to move the drone
         {
         forceX += (double)actionX;
@@ -172,16 +153,13 @@ int main()
             printf("Y - Position: %.2f / Velocity: %.2f\n", pos_y, Vy);
             fflush(stdout);
         }
-        // DELETE: Write zeros on action memory
-        sprintf(ptr_action, "%d,%d", 0, 0);
-        // TODO: Just make sure (from key_manager.c) that once a key is pressed, it does not repeteadly send the same key over and over.
-        // *
 
         int xf = (int)round(pos_x);
         int yf = (int)round(pos_y);
         // DELETE: Write new drone position to shared memory
         sprintf(ptr_pos, "%d,%d,%d,%d", xf, yf, maxX, maxY);
         // TODO: Using pipes write this data so it can be read from (interface.c)
+        // *
 
         // DELETE: Semaphore post
         sem_post(sem_pos);
@@ -191,10 +169,7 @@ int main()
 
     // DELETE: Close shared memories and semaphores
     close(shm_pos_fd);
-    close(shm_action_fd);
     sem_close(sem_pos);
-    sem_close(sem_action);
-
     return 0;
 }
 
@@ -205,9 +180,6 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if( signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_action);
-
         printf("Succesfully closed all semaphores\n");
         exit(1);
     }
@@ -221,6 +193,10 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d", &server_drone[0]);
+}
 
 void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
                         double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY)
@@ -263,10 +239,10 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
         *ext_forceY -= 0;
     }
     // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
-    if(*ext_forceX > 50){*ext_forceX=0;}
-    if(*ext_forceY > 50){*ext_forceY=0;}
-    if(*ext_forceX < 50){*ext_forceX=0;}
-    if(*ext_forceY < 50){*ext_forceY=0;}
+    // if(*ext_forceX > 50){*ext_forceX=0;}
+    // if(*ext_forceY > 50){*ext_forceY=0;}
+    // if(*ext_forceX < 50){*ext_forceX=0;}
+    // if(*ext_forceY < 50){*ext_forceY=0;}
 }
 
 

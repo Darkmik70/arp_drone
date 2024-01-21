@@ -27,13 +27,14 @@ void *ptr_action;           // Shared memory for drone action
 sem_t *sem_key;             // Semaphore for key presses
 sem_t *sem_action;          // Semaphore for drone positions
 
-// Pipes
+// Serverless pipes
 int key_press_fd[2];
-int action_fd[2];
+
+// Pipes working with server
+int km_server[2];
 
 int main(int argc, char *argv[]) 
 {
-
     get_args(argc, argv);
 
     struct sigaction sa;
@@ -79,7 +80,7 @@ int main(int argc, char *argv[])
         fflush(stdout);
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
-
+        
         char *action = determineAction(pressedKey, ptr_action);
         printf("Action sent to drone: %s\n\n", action);
         fflush(stdout);
@@ -87,15 +88,11 @@ int main(int argc, char *argv[])
         // TEMPORAL/DELETE AFTER: TESTING DATA SENT TO PIPE ACTION
         char key = toupper(pressedKey);
         int x; int y;
-        char action_msg[20];
 
-        if ( key == 'D')
+        if ( action != "None")
         {
-            x = 1;    // Movement on the X axis.
-            y = 0;    // Movement on the Y axis.
-            sprintf(action_msg, "%d,%d", x, y);
-            write_to_pipe(action_fd[1], action_msg);
-            printf("Wrote action message: %s into pipe\n", action_msg);
+            write_to_pipe(km_server[1], action);
+            printf("Wrote action message: %s into pipe\n", action);
         }
     }
 
@@ -124,7 +121,6 @@ char* determineAction(int pressedKey, char *shm_action_fd)
 {
     char key = toupper(pressedKey);
     int x; int y;
-    char action_msg[20];
 
     // TODO: Every sprintf is a write into shared memory. Must be changed into the action pipe sent to (drone.c)
 
@@ -134,65 +130,63 @@ char* determineAction(int pressedKey, char *shm_action_fd)
         x = 0;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        sprintf(action_msg, "%d,%d", x, y);
-        write_to_pipe(action_fd[1],action_msg);
-        return "UP";
+        return "0,-1";
     }
     if ( key == 'X')
     {
         x = 0;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "DOWN";
+        return "0,1";
     }
     if ( key == 'A')
     {
         x = -1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "LEFT";
+        return "-1,0";
     }
     if ( key == 'D')
     {
         x = 1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "RIGHT";
+        return "1,0";
     }
     if ( key == 'Q')
     {
         x = -1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "UP-LEFT";
+        return "-1,-1";
     }
     if ( key == 'E')
     {
         x = 1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "UP-RIGHT";
+        return "1,-1";
     }
     if ( key == 'Z')
     {
         x = -1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "DOWN-LEFT";
+        return "-1,1";
     }
     if ( key == 'C')
     {
         x = 1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "DOWN-RIGHT";
+        return "1,1";
     }
     if ( key == 'S')
     {
         x = 900;    // Special value interpreted by drone.c process
         y = 0;
         sprintf(shm_action_fd, "%d,%d", x, y);
-        return "STOP";
+        return "900,0";
     }
     else
     {
@@ -203,7 +197,7 @@ char* determineAction(int pressedKey, char *shm_action_fd)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &key_press_fd[0], &key_press_fd[1]);
+    sscanf(argv[1], "%d %d", &key_press_fd[0], &km_server[1]);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 

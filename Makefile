@@ -8,7 +8,7 @@ UTIL_OBJ = $(BUILDDIR)/util.o
 
 
 # Default target
-all: $(BUILDDIR) util logger wd server km drone interface main 
+all: $(BUILDDIR) util logger wd server km drone interface main targets obstacles
 
 # create build directory
 $(BUILDDIR):

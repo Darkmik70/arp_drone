@@ -247,7 +247,7 @@ int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int d
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &key_press_fd[0], &key_press_fd[1]);
+    sscanf(argv[1], "%d", &key_press_fd[1]);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 

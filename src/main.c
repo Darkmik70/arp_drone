@@ -10,16 +10,14 @@
 #include <sys/types.h>
 
 
-// Pipes file descriptors
+// Serverless pipes (fd)
 int key_press_fd[2];
-int action_fd[2];
-int targets_fd[2];
-int obstacles_fd[2];
 
-// TODO: Execute the new files (targets.c and obstacles.c)
-// TODO: Create all the required pipes.
+// New pipes working with server (fd)
+int km_server[2];
+int server_drone[2];
+
 // TODO: Only execute in Konsole the interface.c and the drone.c for monitoring of force, pos, vel.
-
 
 int main(int argc, char *argv[])
 {
@@ -33,33 +31,28 @@ int main(int argc, char *argv[])
     pid_t targets_pid;
     pid_t obstacles_pid;
 
-    // Pipes
+    // Serverless pipe creation
     if (pipe(key_press_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
-    if (pipe(action_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
-    if (pipe(targets_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
-    if (pipe(obstacles_fd) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
+
+    // Pipe creation
+    if (pipe(km_server) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
+    if (pipe(server_drone) == -1) { perror("pipe"); exit(EXIT_FAILURE); }
 
     // Passing file descriptors for pipes used on key_manager.c
-    char key_manager_fds1[40];
-    char key_manager_fds2[40];
-    sprintf(key_manager_fds1, "%d %d", key_press_fd[0], key_press_fd[1]);
-    sprintf(key_manager_fds2, "%d %d", action_fd[0], action_fd[1]);
+    char key_manager_fds[80];
+    sprintf(key_manager_fds, "%d %d", key_press_fd[0], km_server[1]);
 
     // Passing file descriptors for pipes used on interface.c
-    char window_fds[40];
-    sprintf(window_fds, "%d %d", key_press_fd[0], key_press_fd[1]);
+    char interface_fds[80];
+    sprintf(interface_fds, "%d", key_press_fd[1]);
 
     // Passing file descriptors for pipes used on drone.c
-    char drone_fds[40];
-    sprintf(drone_fds, "%d %d", action_fd[0], action_fd[1]);
+    char drone_fds[80];
+    sprintf(drone_fds, "%d", server_drone[0]);
 
-    // Passing file descriptors for pipes used on targets.c
-    char targets_fds[40];
-    sprintf(targets_fds, "%d %d", targets_fd[0], targets_fd[1]);
-
-    // Passing file descriptors for pipes used on targets.c
-    char obstacles_fds[40];
-    sprintf(obstacles_fds, "%d %d", obstacles_fd[0], obstacles_fd[1]);
+    // Passing file descriptors for pipes used on server.c
+    char server_fds[80];
+    sprintf(server_fds, "%d %d", km_server[0], server_drone[1]);
 
 
     int delay = 100000; // Time delay between next spawns
@@ -67,7 +60,7 @@ int main(int argc, char *argv[])
 
 
     /* Server */
-    char* server_args[] = {"konsole", "-e", "./build/server", NULL};
+    char* server_args[] = {"konsole", "-e", "./build/server", server_fds, NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
     usleep(delay*10); // little bit more time for server
@@ -79,19 +72,19 @@ int main(int argc, char *argv[])
     // usleep(delay);
 
     /* Targets */
-    char* targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
+    char* targets_args[] = {"konsole", "-e", "./build/targets", NULL};
     targets_pid = create_child(targets_args[0], targets_args);
     p_num++;
     usleep(delay);
 
     /* Obstacles */
-    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", obstacles_fds, NULL};
+    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", NULL};
     obstacles_pid = create_child(obstacles_args[0], obstacles_args);
     p_num++;
     usleep(delay);
 
     /* Keyboard manager */
-    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds1, key_manager_fds2, NULL};
+    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds, NULL};
     km_pid = create_child(km_args[0], km_args);
     p_num++;
     usleep(delay);
@@ -109,7 +102,7 @@ int main(int argc, char *argv[])
     printf("Watchdog Created\n");
 
     /* Window - Interface */
-    char* window_args[] = {"konsole", "-e", "./build/interface", window_fds, NULL};
+    char* window_args[] = {"konsole", "-e", "./build/interface", interface_fds, NULL};
     window_pid = create_child(window_args[0], window_args);
     p_num++;
     usleep(delay);

@@ -11,6 +11,12 @@
 #define D_T 0.1 // Time interval in seconds
 #define F_MAX 30.0 // Maximal force that can be acted on the drone's motors
 
+// New Constants 
+#define Coefficient 400.0 // This was obtained by trial-error
+#define minDistance 2.0
+#define startDistance 5.0
+
+void get_args(int argc, char *argv[]);
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
@@ -20,7 +26,6 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
 void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles);
 
 void eulerMethod(double *pos, double *vel, double force, double extForce, double *maxPos);
-void stepMethod(int *x, int *y, int actionX, int actionY);  
 
 
 #endif //DRONE_H

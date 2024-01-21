@@ -20,7 +20,7 @@ typedef struct {
     time_t spawnTime;
 } Obstacle; // Diferent from Obstacle
 
-void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[])
+void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[]);
 
 
 #endif // OBSTACLES_H

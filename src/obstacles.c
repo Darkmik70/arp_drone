@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "obstacles.h"
+
 int main()
 {
     srand(time(NULL));
@@ -19,7 +21,6 @@ int main()
             newObstacle.x = rand() % SCREEN_WIDTH;
             newObstacle.y = rand() % SCREEN_HEIGHT;
             newObstacle.spawnTime = time(NULL) + (rand() % (MAX_SPAWN_TIME - MIN_SPAWN_TIME + 1) + MIN_SPAWN_TIME);
-
             obstacles[numObstacles] = newObstacle;
             numObstacles++;
         }
