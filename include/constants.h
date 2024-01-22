@@ -25,7 +25,7 @@
 #define SEM_LOGS "/my_semaphore_4"
 
 // Pipes
-#define MSG_LEN 512
+#define MSG_LEN 240
 
 // Length for logfiles
 #define LOG_LEN 256

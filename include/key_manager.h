@@ -21,7 +21,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
  * @param pressedKey input provided by the user
  * @returns Status of the action taken
 */
-char* determineAction(int pressedKey, char *sharedAct);
+char* determineAction(int pressedKey);
 
 
 #endif // KEY_MANAGER_H

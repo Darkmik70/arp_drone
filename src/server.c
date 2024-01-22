@@ -107,7 +107,9 @@ int main(int argc, char *argv[])
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 
-    
+    // To compare current and previous data
+    char prev_drone_msg[MSG_LEN] = "";
+
     while (1)
     {
         /* Handle pipe from key_manager.c */
@@ -115,22 +117,22 @@ int main(int argc, char *argv[])
         FD_ZERO(&read_km);
         FD_SET(km_server[0], &read_km);
 
-        char action_msg[MSG_LEN];
+        char km_msg[MSG_LEN];
 
         int ready_km = select(km_server[0] + 1, &read_km, NULL, NULL, &timeout);
         if (ready_km == -1) {perror("Error in select");}
 
         if (ready_km > 0 && FD_ISSET(km_server[0], &read_km)) {
-            ssize_t bytes_read_km = read(km_server[0], action_msg, MSG_LEN);
+            ssize_t bytes_read_km = read(km_server[0], km_msg, MSG_LEN);
             if (bytes_read_km > 0) {
                 // Read acknowledgement
-                printf("RECEIVED %s from key_manager.c\n", action_msg);
+                printf("RECEIVED %s from key_manager.c\n", km_msg);
                 fflush(stdout);
                 // Response
-                char response_action_msg[MSG_LEN*2];
-                sprintf(response_action_msg, "K:%s", action_msg);
-                write_to_pipe(server_drone[1], response_action_msg);
-                printf("SENT %s to drone.c\n", response_action_msg);
+                char response_km_msg[MSG_LEN*2];
+                sprintf(response_km_msg, "K:%s", km_msg);
+                write_to_pipe(server_drone[1], response_km_msg);
+                printf("SENT %s to drone.c\n", response_km_msg);
                 fflush(stdout);
             }
         }
@@ -163,21 +165,22 @@ int main(int argc, char *argv[])
         FD_ZERO(&read_interface);
         FD_SET(drone_server[0], &read_drone);
         
-        char position_msg[MSG_LEN];
+        char drone_msg[MSG_LEN];
 
         int ready_drone = select(drone_server[0] + 1, &read_drone, NULL, NULL, &timeout);
         if (ready_drone == -1) {perror("Error in select");}
 
         if (ready_drone > 0 && FD_ISSET(drone_server[0], &read_drone)) {
-            ssize_t bytes_read_drone = read(drone_server[0], position_msg, MSG_LEN);
+            ssize_t bytes_read_drone = read(drone_server[0], drone_msg, MSG_LEN);
             if (bytes_read_drone > 0) {
-                // Read acknowledgement
-                printf("RECEIVED %s from drone.c\n", position_msg);
-                fflush(stdout);
-                // Response
-                write_to_pipe(server_interface[1], position_msg);
-                printf("SENT %s to interface.c\n", position_msg);
-                fflush(stdout);
+                write_to_pipe(server_interface[1], drone_msg);
+                if (strcmp(drone_msg, prev_drone_msg) != 0) {
+                    printf("RECEIVED %s from drone.c\n", drone_msg);
+                    fflush(stdout);
+                    strcpy(prev_drone_msg, drone_msg); // Update previous values
+                    printf("SENT %s to interface.c\n", drone_msg);
+                    fflush(stdout);
+                }
             }
             else if (bytes_read_drone == -1){perror("Read pipe drone_server");}
         }

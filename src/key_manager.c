@@ -19,14 +19,6 @@
 #include <semaphore.h>
 #include <errno.h>
 
-// GLOBAL VARIABLES
-int shm_key_fd;             // File descriptor for key shm
-int shm_action_fd;          // File descriptor for action shm
-void *ptr_key;              // Shared memory for Key pressing
-void *ptr_action;           // Shared memory for drone action      
-sem_t *sem_key;             // Semaphore for key presses
-sem_t *sem_action;          // Semaphore for drone positions
-
 // Serverless pipes
 int key_press_fd[2];
 
@@ -44,18 +36,6 @@ int main(int argc, char *argv[])
     sigaction (SIGUSR1, &sa, NULL);   
 
     publish_pid_to_wd(KM_SYM, getpid());
-
-    // DELETE: Everthing related to shared memory and semaphores
-
-    // Initialize shared memory for KEY PRESSING
-    shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
-    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
-    // Initialize shared memory for DRONE CONTROL - ACTION
-    shm_action_fd = shm_open(SHM_ACTION, O_RDWR, 0666);
-    ptr_action = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_action_fd, 0);
-    // Initialize semaphores
-    sem_key = sem_open(SEM_KEY, 0);
-    sem_action = sem_open(SEM_ACTION, 0);
 
     while (1)
     {
@@ -81,7 +61,7 @@ int main(int argc, char *argv[])
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
         
-        char *action = determineAction(pressedKey, ptr_action);
+        char *action = determineAction(pressedKey);
         fflush(stdout);
 
         // TEMPORAL/DELETE AFTER: TESTING DATA SENT TO PIPE ACTION
@@ -94,14 +74,6 @@ int main(int argc, char *argv[])
             printf("Wrote action message: %s into pipe\n", action);
         }
     }
-
-    // DELETE: Everything related to shared memory and semaphores
-    // Close shared memories
-    close(shm_key_fd);
-    close(shm_action_fd);
-    // Close and unlink the semaphores
-    sem_close(sem_key);
-    sem_close(sem_action);
 
     return 0;
 }
@@ -116,7 +88,7 @@ int read_key_from_pipe(int pipe_fd)
 
 
 // US Keyboard assumed
-char* determineAction(int pressedKey, char *shm_action_fd)
+char* determineAction(int pressedKey)
 {
     char key = toupper(pressedKey);
     int x; int y;
@@ -128,63 +100,54 @@ char* determineAction(int pressedKey, char *shm_action_fd)
     {
         x = 0;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "0,-1";
     }
     if ( key == 'X')
     {
         x = 0;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "0,1";
     }
     if ( key == 'A')
     {
         x = -1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "-1,0";
     }
     if ( key == 'D')
     {
         x = 1;    // Movement on the X axis.
         y = 0;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "1,0";
     }
     if ( key == 'Q')
     {
         x = -1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "-1,-1";
     }
     if ( key == 'E')
     {
         x = 1;    // Movement on the X axis.
         y = -1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "1,-1";
     }
     if ( key == 'Z')
     {
         x = -1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "-1,1";
     }
     if ( key == 'C')
     {
         x = 1;    // Movement on the X axis.
         y = 1;    // Movement on the Y axis.
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "1,1";
     }
     if ( key == 'S')
     {
         x = 900;    // Special value interpreted by drone.c process
         y = 0;
-        sprintf(shm_action_fd, "%d,%d", x, y);
         return "900,0";
     }
     else
@@ -205,11 +168,6 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if  (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_key);
-        sem_close(sem_action);
-
-        printf("Succesfully closed all semaphores\n");
         exit(1);
     }
     if (signo == SIGUSR1)
