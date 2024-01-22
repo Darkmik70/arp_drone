@@ -27,6 +27,8 @@ int drone_server[2];
 int server_interface[2];
 int server_obstacles[2];
 int obstacles_server[2];
+int server_targets[2];
+int targets_server[2];
 
 // GLOBAL VARIABLES
 void *ptr_wd;                           // Shared memory for WD
@@ -162,8 +164,8 @@ int main(int argc, char *argv[])
                 // Response for obstacles.c and targets.c
                 if(interface_msg[0] == 'I' && interface_msg[1] == '2'){
                     write_to_pipe(server_obstacles[1],interface_msg);
-                    printf("SENT %s to obstacles.c\n", interface_msg);
-                    // TODO: Send to targets.c
+                    write_to_pipe(server_targets[1],interface_msg);
+                    printf("SENT %s to obstacles.c and targets.c\n", interface_msg);
                 }
             }
         }
@@ -220,6 +222,33 @@ int main(int argc, char *argv[])
             }
             else if (bytes_read_obstacles == -1) {perror("Read pipe obstacles_server");}
         }
+
+        /* Handle pipe from targets.c */
+        fd_set read_targets;
+        FD_ZERO(&read_targets);
+        FD_SET(targets_server[0], &read_targets);
+        
+        char targets_msg[MSG_LEN];
+
+        int ready_targets = select(targets_server[0] + 1, &read_targets, NULL, NULL, &timeout);
+        if (ready_targets == -1) {perror("Error in select");}
+
+        if (ready_targets > 0 && FD_ISSET(targets_server[0], &read_targets)) {
+            ssize_t bytes_read_targets = read(targets_server[0], targets_msg, MSG_LEN);
+            if (bytes_read_targets > 0) {
+                // Read acknowledgement
+                printf("RECEIVED %s from targets.c\n", targets_msg);
+                fflush(stdout);
+                // Send to interface.c
+                write_to_pipe(server_interface[1],targets_msg);
+                printf("SENT %s to interface.c\n", targets_msg);
+                fflush(stdout);
+            }
+            else if (bytes_read_targets == -1) {perror("Read pipe targets_server");}
+        }
+
+
+
     }
 
     // Close and unlink the semaphores
@@ -306,7 +335,8 @@ void clean_up()
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d %d %d %d %d", &km_server[0], &server_drone[1], 
+    sscanf(argv[1], "%d %d %d %d %d %d %d %d %d", &km_server[0], &server_drone[1], 
     &interface_server[0], &drone_server[0], &server_interface[1],
-    &server_obstacles[1], &obstacles_server[0]);
+    &server_obstacles[1], &obstacles_server[0], &server_targets[1],
+    &targets_server[0]);
 }

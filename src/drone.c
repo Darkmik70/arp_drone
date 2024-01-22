@@ -21,6 +21,9 @@
 #include <errno.h>
 
 
+// Serverless pipes
+int lowest_target_fd[2];
+
 // Pipes working with the server
 int server_drone[2];
 int drone_server[2];
@@ -43,6 +46,8 @@ int main(int argc, char *argv[])
     int screen_size_x; int screen_size_y;
     int actionX; int actionY;
     double pos_x; double pos_y;
+    int target_x; int target_y;
+    int valid_target;
 
     // Initial values
     double Vx = 0.0; double Vy = 0.0;
@@ -107,7 +112,32 @@ int main(int argc, char *argv[])
         }
         
         //////////////////////////////////////////////////////
-        /* SECTION 2: OBTAIN THE FORCES EXERTED ON THE DRONE*/
+        /* SECTION 2: READ DATA FROM INTERFACE.C (SERVERLESS PIPE) */
+        /////////////////////////////////////////////////////
+
+        fd_set read_interface;
+        FD_ZERO(&read_interface);
+        FD_SET(lowest_target_fd[0], &read_interface);
+        
+        char msg[MSG_LEN];
+
+        int ready_targets = select(lowest_target_fd[0] + 1, &read_interface, NULL, NULL, &timeout);
+        if (ready_targets == -1) {perror("Error in select");}
+
+        if (ready_targets > 0 && FD_ISSET(lowest_target_fd[0], &read_interface)) {
+            ssize_t bytes_read_interface = read(lowest_target_fd[0], msg, MSG_LEN);
+            if (bytes_read_interface > 0) {
+                // Read acknowledgement
+                printf("RECEIVED %s from interface.c\n", msg);
+                sscanf(msg, "%d,%d", &target_x, &target_y);
+                fflush(stdout);
+                valid_target = 1;
+            }
+            else if (bytes_read_interface == -1) {perror("Read pipe lowest_target_fd");}
+        }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 3: OBTAIN THE FORCES EXERTED ON THE DRONE*/
         /////////////////////////////////////////////////////  
 
         /* INTERNAL FORCE from the drone itself */
@@ -127,13 +157,10 @@ int main(int argc, char *argv[])
         double ext_forceY = 0.0;
 
         // TARGETS
-        // TODO: Obtain the string for targets_msg from a pipe from (interface.c)
-        char targets_msg[] = "140,23";
-        double target_x, target_y;
-        sscanf(targets_msg, "%lf,%lf", &target_x, &target_y);
-        calculateExtForce(pos_x, pos_y, target_x, target_y, 0.0, 0.0, &ext_forceX, &ext_forceY);
-
-
+        if(valid_target == 1){
+            calculateExtForce(pos_x, pos_y, target_x, target_y, 0.0, 0.0, &ext_forceX, &ext_forceY);
+        }
+        // OBSTACLES
         for (int i = 0; i < numObstacles; i++) {
             calculateExtForce(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
         }
@@ -194,15 +221,10 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
-void get_args(int argc, char *argv[])
-{
-    sscanf(argv[1], "%d %d", &server_drone[0], &drone_server[1]);
-}
 
 void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
                         double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY)
 {
-
     // ***Calculate ATTRACTION force towards the target***
     double distanceToTarget = sqrt(pow(targetX - droneX, 2) + pow(targetY - droneY, 2));
     double angleToTarget = atan2(targetY - droneY, targetX - droneX);
@@ -238,11 +260,6 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
         *ext_forceX -= 0;
         *ext_forceY -= 0;
     }
-    // TO FIX A BUG WITH BIG FORCES APPEARING OUT OF NOWHERE
-    // if(*ext_forceX > 50.0){*ext_forceX=0;}
-    // if(*ext_forceY > 50.0){*ext_forceY=0;}
-    // if(*ext_forceX < 50.0){*ext_forceX=0;}
-    // if(*ext_forceY < 50.0){*ext_forceY=0;}
 }
 
 
@@ -274,4 +291,9 @@ void eulerMethod(double *pos, double *vel, double force, double extForce, double
     // Walls are the maximum position the drone can reach
     if (*pos < 0){*pos = 0;}
     if (*pos > *maxPos){*pos = *maxPos - 1;}
+}
+
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d %d", &server_drone[0], &drone_server[1], &lowest_target_fd[0]);
 }

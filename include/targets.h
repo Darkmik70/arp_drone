@@ -12,6 +12,7 @@ typedef struct {
     int y;
 } Target;
 
+void get_args(int argc, char *argv[]);
 void generateRandomCoordinates(int sectorWidth, int sectorHeight, int *x, int *y);
 
 #endif // TARGETS_H

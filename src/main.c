@@ -12,6 +12,7 @@
 
 // Serverless pipes (fd)
 int key_press_fd[2];
+int lowest_target_fd[2];
 
 // New pipes working with server (fd)
 int km_server[2];
@@ -21,6 +22,8 @@ int drone_server[2];
 int server_interface[2];
 int server_obstacles[2];
 int obstacles_server[2];
+int server_targets[2];
+int targets_server[2];
 
 int main(int argc, char *argv[])
 {
@@ -36,18 +39,26 @@ int main(int argc, char *argv[])
 
     // Serverless pipe creation
     if (pipe(key_press_fd) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(lowest_target_fd) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: To server
     if (pipe(km_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(drone_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(interface_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(obstacles_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(targets_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: From server
     if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(server_interface) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(server_obstacles) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_targets) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     
+    // Passing file descriptors for pipes used on server.c
+    char server_fds[80];
+    sprintf(server_fds, "%d %d %d %d %d %d %d %d %d", km_server[0], server_drone[1], 
+    interface_server[0], drone_server[0], server_interface[1], server_obstacles[1], 
+    obstacles_server[0], server_targets[1], targets_server[0]);
 
     // Passing file descriptors for pipes used on key_manager.c
     char key_manager_fds[80];
@@ -55,22 +66,20 @@ int main(int argc, char *argv[])
 
     // Passing file descriptors for pipes used on interface.c
     char interface_fds[80];
-    sprintf(interface_fds, "%d %d %d", key_press_fd[1], server_interface[0],
-    interface_server[1]);
+    sprintf(interface_fds, "%d %d %d %d", key_press_fd[1], server_interface[0],
+    interface_server[1], lowest_target_fd[1]);
 
     // Passing file descriptors for pipes used on drone.c
     char drone_fds[80];
-    sprintf(drone_fds, "%d %d", server_drone[0], drone_server[1]);
-
-    // Passing file descriptors for pipes used on server.c
-    char server_fds[80];
-    sprintf(server_fds, "%d %d %d %d %d %d %d", km_server[0], server_drone[1], 
-    interface_server[0], drone_server[0], server_interface[1], 
-    server_obstacles[1], obstacles_server[0]);
+    sprintf(drone_fds, "%d %d %d", server_drone[0], drone_server[1], lowest_target_fd[0]);
 
     // Passing file descriptors for pipes used on obstacles.c
     char obstacles_fds[80];
     sprintf(obstacles_fds, "%d %d", server_obstacles[0], obstacles_server[1]);
+
+    // Passing file descriptors for pipes used on targets.c
+    char targets_fds[80];
+    sprintf(targets_fds, "%d %d", server_targets[0], targets_server[1]);
 
 
     int delay = 100000; // Time delay between next spawns
@@ -83,14 +92,8 @@ int main(int argc, char *argv[])
     p_num++;
     usleep(delay*10); // little bit more time for server
 
-    // /* Logger */ 
-    // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
-    // logger_pid = create_child(logger_args[0], logger_args);
-    // p_num++;
-    // usleep(delay);
-
     /* Targets */
-    char* targets_args[] = {"konsole", "-e", "./build/targets", NULL};
+    char* targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
     targets_pid = create_child(targets_args[0], targets_args);
     p_num++;
     usleep(delay);
@@ -124,6 +127,12 @@ int main(int argc, char *argv[])
     window_pid = create_child(window_args[0], window_args);
     p_num++;
     usleep(delay);
+
+    // /* Logger */ 
+    // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
+    // logger_pid = create_child(logger_args[0], logger_args);
+    // p_num++;
+    // usleep(delay);
 
     /* Wait for all children to close */
     for (int i = 0; i < p_num; i++)

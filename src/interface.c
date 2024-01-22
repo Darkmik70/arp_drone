@@ -21,6 +21,7 @@
 
 // Serverless pipes
 int key_press_fd[2];
+int lowest_target_fd[2];
 
 // Pipes working with the server
 int interface_server[2];
@@ -77,10 +78,8 @@ int main(int argc, char *argv[])
     timeout.tv_usec = 0;
 
     // Targets and obstacles
-    char targets_msg[] = "T[8]140,23|105,5|62,4|38,6|50,16|6,25|89,34|149,11";
     Targets targets[80];
     int numTargets;
-    parseTargetMsg(targets_msg, targets, &numTargets);
 
     Obstacles obstacles[80];
     int numObstacles;
@@ -129,13 +128,11 @@ int main(int argc, char *argv[])
                 parseObstaclesMsg(server_msg, obstacles, &numObstacles);
                 obtained_obstacles = 1;
             }
+            else if (server_msg[0] == 'T'){
+                parseTargetMsg(server_msg, targets, &numTargets);
+                obtained_targets = 1;
+            }
         }
-        
-        // TODO: Should be obtained from a pipe from (server.c), that gets it from (targets.c)
-        // if(obtained_targets == 0){
-        //     char targets_msg[] = "T[8]140,23|105,5|62,4|38,6|50,16|6,25|89,34|149,11";
-        //     obtained_targets = 1;
-        // }
         
         if (obtained_targets == 0 && obtained_obstacles == 0){
             continue;
@@ -151,8 +148,8 @@ int main(int argc, char *argv[])
         // Obtain the coordinates of that target
         char lowestTarget[20];
         sprintf(lowestTarget, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
-        // TODO: send this string called 'lowestTarget' to (drone.c)
-        // *
+        // Send to drone w/ serverless pipe lowest_target
+        write_to_pipe(lowest_target_fd[1], lowestTarget);
 
         // Check if the coordinates of the lowest ID target match the drone coordinates
         if (targets[lowestIndex].x == droneX && targets[lowestIndex].y == droneY) {
@@ -344,6 +341,6 @@ void draw_window(int droneX, int droneY, Targets *targets, int numTargets,
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d", &key_press_fd[1], &server_interface[0], 
-    &interface_server[1]);
+    sscanf(argv[1], "%d %d %d %d", &key_press_fd[1], &server_interface[0], 
+    &interface_server[1], &lowest_target_fd[1]);
 }
