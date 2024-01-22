@@ -19,6 +19,8 @@ int server_drone[2];
 int interface_server[2];
 int drone_server[2];
 int server_interface[2];
+int server_obstacles[2];
+int obstacles_server[2];
 
 int main(int argc, char *argv[])
 {
@@ -35,12 +37,17 @@ int main(int argc, char *argv[])
     // Serverless pipe creation
     if (pipe(key_press_fd) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
-    // Pipe creation
+    // Pipe creation: To server
     if (pipe(km_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(drone_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(interface_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(obstacles_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+
+    // Pipe creation: From server
+    if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
     if (pipe(server_interface) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_obstacles) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    
 
     // Passing file descriptors for pipes used on key_manager.c
     char key_manager_fds[80];
@@ -48,8 +55,8 @@ int main(int argc, char *argv[])
 
     // Passing file descriptors for pipes used on interface.c
     char interface_fds[80];
-    sprintf(interface_fds, "%d %d %d", key_press_fd[1], interface_server[1],
-    server_interface[0]);
+    sprintf(interface_fds, "%d %d %d", key_press_fd[1], server_interface[0],
+    interface_server[1]);
 
     // Passing file descriptors for pipes used on drone.c
     char drone_fds[80];
@@ -57,8 +64,13 @@ int main(int argc, char *argv[])
 
     // Passing file descriptors for pipes used on server.c
     char server_fds[80];
-    sprintf(server_fds, "%d %d %d %d %d", km_server[0], server_drone[1], 
-    interface_server[0], drone_server[0], server_interface[1]);
+    sprintf(server_fds, "%d %d %d %d %d %d %d", km_server[0], server_drone[1], 
+    interface_server[0], drone_server[0], server_interface[1], 
+    server_obstacles[1], obstacles_server[0]);
+
+    // Passing file descriptors for pipes used on obstacles.c
+    char obstacles_fds[80];
+    sprintf(obstacles_fds, "%d %d", server_obstacles[0], obstacles_server[1]);
 
 
     int delay = 100000; // Time delay between next spawns
@@ -84,7 +96,7 @@ int main(int argc, char *argv[])
     usleep(delay);
 
     /* Obstacles */
-    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", NULL};
+    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", obstacles_fds, NULL};
     obstacles_pid = create_child(obstacles_args[0], obstacles_args);
     p_num++;
     usleep(delay);

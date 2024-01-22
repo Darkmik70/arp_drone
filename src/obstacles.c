@@ -1,25 +1,82 @@
+#include "obstacles.h"
+#include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
 
-#include "obstacles.h"
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/mman.h>
+#include <sys/select.h>
+#include <sys/stat.h>
 
-int main()
+#include <signal.h>
+
+// Pipes working with the server
+int server_obstacles[2];
+int obstacles_server[2];
+
+int main(int argc, char *argv[])
 {
+    get_args(argc, argv);
     srand(time(NULL));
 
     Obstacle obstacles[MAX_OBSTACLES];
     int numObstacles = 0;
-    char obstacles_msg[1000]; // Adjust the size based on your requirements
+    char obstacles_msg[MSG_LEN];
+    //sleep(1);
+
+    // Timeout
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // To compare previous values
+    int obstained_dimensions = 0;
+    int prev_screen_x = 0; int prev_screen_y = 0;
+
+    // Variables
+    int screen_x; int screen_y;
 
     while (1) {
+
+        //////////////////////////////////////////////////////
+        /* SECTION 1: READ THE DATA FROM SERVER*/
+        /////////////////////////////////////////////////////
+
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(server_obstacles[0], &read_fds);
+        
+        char server_msg[MSG_LEN];
+
+        int ready = select(server_obstacles[0] + 1, &read_fds, NULL, NULL, &timeout);
+        if (ready == -1) {perror("Error in select");}
+
+        if (ready > 0 && FD_ISSET(server_obstacles[0], &read_fds)) {
+            ssize_t bytes_read = read(server_obstacles[0], server_msg, MSG_LEN);
+            if (bytes_read > 0) {
+                sscanf(server_msg, "I2:%d,%d", &screen_x, &screen_y);
+                printf("Obtained from server: %s\n", server_msg);
+                fflush(stdout);
+                obstained_dimensions = 1;
+            }
+        }
+        if(obstained_dimensions == 0){continue;}
+
+
+        //////////////////////////////////////////////////////
+        /* SECTION 2: SPAWN OBSTACLES LOGIC & SEND DATA */
+        /////////////////////////////////////////////////////
+
         // Check if it's time to spawn a new obstacle
         if (numObstacles < MAX_OBSTACLES) {
             Obstacle newObstacle;
-            newObstacle.x = rand() % SCREEN_WIDTH;
-            newObstacle.y = rand() % SCREEN_HEIGHT;
+            newObstacle.x = rand() % screen_x;
+            newObstacle.y = rand() % screen_y;
             newObstacle.spawnTime = time(NULL) + (rand() % (MAX_SPAWN_TIME - MIN_SPAWN_TIME + 1) + MIN_SPAWN_TIME);
             obstacles[numObstacles] = newObstacle;
             numObstacles++;
@@ -35,14 +92,14 @@ int main()
         for (int i = 0; i < numObstacles; ++i) {
             if (obstacles[i].spawnTime <= currentTime) {
                 // Replace the obstacle with a new one
-                obstacles[i].x = rand() % SCREEN_WIDTH;
-                obstacles[i].y = rand() % SCREEN_HEIGHT;
+                obstacles[i].x = rand() % screen_x;
+                obstacles[i].y = rand() % screen_y;
                 obstacles[i].spawnTime = time(NULL) + (rand() % (MAX_SPAWN_TIME - MIN_SPAWN_TIME + 1) + MIN_SPAWN_TIME);
             }
         }
 
-        // TODO: Send the obstacles_msg using pipes to (server.c), and from the server then to (interface.c) and (drone.c)
-        // *
+        // SEND DATA TO SERVER
+        write_to_pipe(obstacles_server[1],obstacles_msg);
 
     }
 
@@ -64,4 +121,10 @@ void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[]
         }
     }
     printf("%s\n", obstacles_msg);
+    fflush(stdout);
+}
+
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d", &server_obstacles[0], &obstacles_server[1]);
 }

@@ -13,7 +13,6 @@
 #include <semaphore.h>
 #include <signal.h>
 
-// TODO: Edit according to usage regarding PIPES
 
 void publish_pid_to_wd(int process_symbol, pid_t pid)
 {   
@@ -32,17 +31,13 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
     sem_wait(sem_wd_3);
     // Allow other processes to do that. 
     sem_post(sem_wd_1);
-
     // PID's published, close your connections
     sem_close(sem_wd_1);
     sem_close(sem_wd_2);
     sem_close(sem_wd_3);
-
     // Detach from shared memorry
     munmap(ptr_wd,SIZE_SHM);
 }
-
-
 
 // Pipe functions
 void write_to_pipe(int pipe_fd, char message[])
@@ -54,7 +49,8 @@ void write_to_pipe(int pipe_fd, char message[])
         exit(1);
     }
 }
-//TODO add to util.h and add comments
+
+// TODO: add to util.h and add comments
 void log_msg(int who, int type, char *msg)
 {
     int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
@@ -67,53 +63,4 @@ void log_msg(int who, int type, char *msg)
     munmap(ptr_logs,SIZE_SHM);
     close(shm_logs_fd);
 }
-
-// bool ask_to_write_on_pipe(int pipe)
-// {
-//     while (1)
-//     {
-//         if (!in_progress)
-//         {
-//             printf("Sent write request\n");
-//             write(send_pipe, ask_char, strlen(ask_char) + 1);
-//             in_progress = 1;
-//         }
-
-//     }
-
-// }
-// {
-
-//     while (1) 
-//     {   
-//         // send ask
-//         if(!in_progress){
-//             printf("Sent write request\n");
-//             write(send_pipe, ask_char, strlen(ask_char) + 1);
-//             in_progress = 1;
-//         }
-//         else //wait for reply
-//         {
-//             read(receive_pipe, read_str, MSG_LEN);
-//             if(read_str[0] == 'K')
-//             {
-//                 send_int = random() % 255;
-//                 sprintf(send_str, "%i", send_int);
-
-//                 printf("Acknowledged, sent %i \n", send_int);
-
-//                 write(send_pipe, send_str, strlen(send_str)+1);
-//             }
-//             else if (read_str[0] == 'R')
-//             {
-//                 printf("Rejected \n");
-//             }
-//             in_progress = 0;
-//         }
-//         sleep(2);
-//     } 
-//     return 0; 
-// } 
-
-// }
 

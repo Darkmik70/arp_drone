@@ -37,7 +37,6 @@ int decypher_message(char server_msg[]) {
     else {return 0;}
 }
 
-
 int main(int argc, char *argv[])
 {
     // Get the file descriptors for the pipes from the arguments
@@ -51,7 +50,7 @@ int main(int argc, char *argv[])
     sigaction (SIGUSR1, &sa, NULL);    
     publish_pid_to_wd(WINDOW_SYM, getpid());
 
-    /* INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS */
+    // INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS
     initscr();
     timeout(0); 
     curs_set(0); // Remove the cursor
@@ -73,24 +72,90 @@ int main(int argc, char *argv[])
     sprintf(initial_msg, "I1:%d,%d,%d,%d", droneX, droneY, screen_size_x, screen_size_y);
     write_to_pipe(interface_server[1], initial_msg);
 
-    /* OBTAIN TARGETS */
-    // TODO: Should be obtained from a pipe from (server.c), that gets it from (targets.c)
+    /* Useful variables creation*/
+    // To compare current and previous data
+    char prev_lowest_target[] = "";
+    int obtained_targets = 0;
+    int obtained_obstacles = 0;
+    // For game score calculation
+    int score = 0;
+    char score_msg[MSG_LEN];
+    int counter = 0;
+    // Timeout
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Targets and obstacles
     char targets_msg[] = "T[8]140,23|105,5|62,4|38,6|50,16|6,25|89,34|149,11";
-    Targets targets[30];
+    Targets targets[80];
     int numTargets;
     parseTargetMsg(targets_msg, targets, &numTargets);
 
-    // For game score calculation
-    int score = 0;
-    int counter = 0;
+    Obstacles obstacles[80];
+    int numObstacles;
 
     while (1)
     {   
-        // TODO: Should be obtained from a pipe from (server.c), that gets it from (obstacles.c)
-        char obstacles_msg[] = "O[7]35,11|100,5|16,30|88,7|130,40|53,15|60,10";
-        Obstacles obstacles[30];
-        int numObstacles;
-        parseObstaclesMsg(obstacles_msg, obstacles, &numObstacles);
+        //////////////////////////////////////////////////////
+        /* SECTION 1: SEND SCREEN DIMENSIONS TO SERVER */
+        /////////////////////////////////////////////////////
+
+        getmaxyx(stdscr, screen_size_y, screen_size_x); 
+        /*SEND x,y screen dimensions to server when screen size changes*/
+        if (screen_size_x != prev_screen_size_x ||
+         screen_size_y != prev_screen_size_y) {
+            // Update previous values
+            prev_screen_size_x = screen_size_x;
+            prev_screen_size_y = screen_size_y;
+            // Send data
+            char screen_msg[MSG_LEN];
+            sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
+            // Send it directly to key_manager.c
+            write_to_pipe(interface_server[1], screen_msg);
+         }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 2: READ THE DATA FROM SERVER*/
+        /////////////////////////////////////////////////////
+
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(server_interface[0], &read_fds);
+        
+        char server_msg[MSG_LEN];
+
+        int ready;
+        do {
+            ready = select(server_interface[0] + 1, &read_fds, NULL, NULL, NULL);
+            if (ready == -1) {perror("Error in select");}
+        } while (ready == -1 && errno == EINTR);
+
+        ssize_t bytes_read_drone = read(server_interface[0], server_msg, MSG_LEN);
+        if (bytes_read_drone > 0) {
+            if (server_msg[0] == 'D'){
+                sscanf(server_msg, "D:%d,%d", &droneX, &droneY);
+            }
+            else if (server_msg[0] == 'O'){
+                //strcpy(obstacles_msg, server_msg);
+                parseObstaclesMsg(server_msg, obstacles, &numObstacles);
+                obtained_obstacles = 1;
+            }
+        }
+        
+        // TODO: Should be obtained from a pipe from (server.c), that gets it from (targets.c)
+        // if(obtained_targets == 0){
+        //     char targets_msg[] = "T[8]140,23|105,5|62,4|38,6|50,16|6,25|89,34|149,11";
+        //     obtained_targets = 1;
+        // }
+        
+        if (obtained_targets == 0 && obtained_obstacles == 0){
+            continue;
+        }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 3: DATA ANALYSIS & GAME SCORE CALCULATION*/
+        /////////////////////////////////////////////////////
 
         /* UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER */
         // Find the index of the target with the lowest ID
@@ -100,7 +165,6 @@ int main(int argc, char *argv[])
         sprintf(lowestTarget, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
         // TODO: send this string called 'lowestTarget' to (drone.c)
         // *
-
 
         // Check if the coordinates of the lowest ID target match the drone coordinates
         if (targets[lowestIndex].x == droneX && targets[lowestIndex].y == droneY) {
@@ -128,10 +192,12 @@ int main(int argc, char *argv[])
             score -= 5;
         }
 
+        //////////////////////////////////////////////////////
+        /* SECTION 4: DRAW THE WINDOW & OBTAIN INPUT*/
+        /////////////////////////////////////////////////////
+
         // Create a string for the player's current score
-        char score_msg[MSG_LEN];
         sprintf(score_msg, "Your current score: %d", score);
-    
         // Draws the window with the updated information of the terminal size, drone, targets, obstacles and score.
         draw_window(droneX, droneY, targets, numTargets, obstacles, numObstacles, score_msg);
 
@@ -145,47 +211,7 @@ int main(int argc, char *argv[])
             // Send it directly to key_manager.c
             write_to_pipe(key_press_fd[1], msg);
         }
-
-        // Clear the input buffer
-        flushinp();
-
-        /* READ the pipe from SERVER*/
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 0;
-
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(server_interface[0], &read_fds);
-        
-        char server_msg[MSG_LEN];
-
-        int ready;
-        do {
-            ready = select(server_interface[0] + 1, &read_fds, NULL, NULL, NULL);
-            if (ready == -1) {perror("Error in select");}
-        } while (ready == -1 && errno == EINTR);
-
-        ssize_t bytes_read_drone = read(server_interface[0], server_msg, MSG_LEN);
-        if (bytes_read_drone > 0) {
-            //int x; int y;
-            sscanf(server_msg, "D:%d,%d", &droneX, &droneY);
-            //printf("Drone values pipe: %d,%d\n",x,y);
-        }
-
-        getmaxyx(stdscr, screen_size_y, screen_size_x); 
-        /*SEND x,y screen dimensions to server when screen size changes*/
-        if (screen_size_x != prev_screen_size_x ||
-         screen_size_y != prev_screen_size_y) {
-            // Update previous values
-            prev_screen_size_x = screen_size_x;
-            prev_screen_size_y = screen_size_y;
-            // Send data
-            char screen_msg[MSG_LEN];
-            sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
-            // Send it directly to key_manager.c
-            write_to_pipe(interface_server[1], screen_msg);
-         }
+        flushinp(); // Clear the input buffer
 
         // Counter/Timer linked to score calculations
         counter++;
@@ -197,14 +223,6 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-
-void get_args(int argc, char *argv[])
-{
-    sscanf(argv[1], "%d %d %d", &key_press_fd[1], &interface_server[1], 
-    &server_interface[0]);
-}
-
 
 // Function to find the index of the target with the lowest ID.
 int findLowestID(Targets *targets, int numTargets) {
@@ -324,12 +342,20 @@ void draw_window(int droneX, int droneY, Targets *targets, int numTargets,
     // Draw obstacles on the board
     for (int i = 0; i < numObstacles; i++) {
         mvaddch(obstacles[i].y, obstacles[i].x, 'O' ); // Assuming 'O' represents obstacles
+        refresh();
     }
-    refresh();
+    
 
     // Draw targets on the board
     for (int i = 0; i < numTargets; i++) {
         mvaddch(targets[i].y, targets[i].x, targets[i].id + '0');
+        refresh();
     }
-    refresh(); // Always refresh when adding or changing the window.
+}
+
+
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%d %d %d", &key_press_fd[1], &server_interface[0], 
+    &interface_server[1]);
 }
