@@ -5,40 +5,293 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <sys/ipc.h>
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
+#include <sys/select.h>
 
 #include <fcntl.h>
 #include <ncurses.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <errno.h>
+
+// Serverless pipes
+int key_press_fd[2];
+int lowest_target_fd[2];
+
+// Pipes working with the server
+int interface_server[2];
+int server_interface[2];
 
 
-/* Global variables */
-int shm_key_fd;         // File descriptor for key shm
-int shm_pos_fd;         // File descriptor for drone pos shm
-int *ptr_key;           // Shared memory for Key pressing
-char *ptr_pos;          // Shared memory for Drone Position
-sem_t *sem_key;         // Semaphore for key presses
-sem_t *sem_pos;         // Semaphore for drone positions
+int main(int argc, char *argv[])
+{
+    // Get the file descriptors for the pipes from the arguments
+    get_args(argc, argv);
+
+    // Signals
+    struct sigaction sa;
+    sa.sa_sigaction = signal_handler;
+    sa.sa_flags = SA_SIGINFO;
+    sigaction (SIGINT, &sa, NULL);  
+    sigaction (SIGUSR1, &sa, NULL);    
+    publish_pid_to_wd(WINDOW_SYM, getpid());
+
+    // INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS
+    initscr();
+    timeout(0); 
+    curs_set(0); // Remove the cursor
+    start_color(); // Enable color
+    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone is blue
+    noecho(); // Disable echoing
+
+    /* SET INITIAL DRONE POSITION */
+    // Obtain the screen dimensions
+    int screen_size_y, screen_size_x;
+    int prev_screen_size_y = 0;
+    int prev_screen_size_x = 0;
+    getmaxyx(stdscr, screen_size_y, screen_size_x); 
+    // Initial drone position will be the middle of the screen.
+    int droneX = screen_size_x / 2;
+    int droneY = screen_size_y / 2;;
+    // Write the initial position and screen size data into the server
+    char initial_msg[MSG_LEN];
+    sprintf(initial_msg, "I1:%d,%d,%d,%d", droneX, droneY, screen_size_x, screen_size_y);
+    write_to_pipe(interface_server[1], initial_msg);
+
+    /* Useful variables creation*/
+    // To compare current and previous data
+    char prev_lowest_target[] = "";
+    int obtained_targets = 0;
+    int obtained_obstacles = 0;
+    // For game score calculation
+    int score = 0;
+    char score_msg[MSG_LEN];
+    int counter = 0;
+    // Timeout
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Targets and obstacles
+    Targets targets[80];
+    int numTargets;
+
+    Obstacles obstacles[80];
+    int numObstacles;
+
+    while (1)
+    {   
+        //////////////////////////////////////////////////////
+        /* SECTION 1: SEND SCREEN DIMENSIONS TO SERVER */
+        /////////////////////////////////////////////////////
+
+        getmaxyx(stdscr, screen_size_y, screen_size_x); 
+        /*SEND x,y  to server ONLY when screen size changes*/
+        if (screen_size_x != prev_screen_size_x ||
+         screen_size_y != prev_screen_size_y) {
+            // Update previous values
+            prev_screen_size_x = screen_size_x;
+            prev_screen_size_y = screen_size_y;
+            // Send data
+            char screen_msg[MSG_LEN];
+            sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
+            write_to_pipe(interface_server[1], screen_msg);
+         }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 2: READ THE DATA FROM SERVER*/
+        /////////////////////////////////////////////////////
+
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(server_interface[0], &read_fds);
+        
+        char server_msg[MSG_LEN];
+
+        int ready;
+        do {
+            ready = select(server_interface[0] + 1, &read_fds, NULL, NULL, NULL);
+            if (ready == -1) {perror("Error in select");}
+        } while (ready == -1 && errno == EINTR);
+
+        ssize_t bytes_read_drone = read(server_interface[0], server_msg, MSG_LEN);
+        if (bytes_read_drone > 0) {
+            if (server_msg[0] == 'D'){
+                sscanf(server_msg, "D:%d,%d", &droneX, &droneY);
+            }
+            else if (server_msg[0] == 'O'){
+                parseObstaclesMsg(server_msg, obstacles, &numObstacles);
+                obtained_obstacles = 1;
+            }
+            else if (server_msg[0] == 'T'){
+                parseTargetMsg(server_msg, targets, &numTargets);
+                obtained_targets = 1;
+            }
+        }
+        
+        if (obtained_targets == 0 && obtained_obstacles == 0){
+            continue;
+        }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 3: DATA ANALYSIS & GAME SCORE CALCULATION*/
+        /////////////////////////////////////////////////////
+
+        /* UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER */
+        // Find the index of the target with the lowest ID
+        int lowestIndex = findLowestID(targets, numTargets);
+        // Obtain the coordinates of that target
+        char lowestTarget[20];
+        sprintf(lowestTarget, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
+        // Send to drone w/ serverless pipe lowest_target
+        write_to_pipe(lowest_target_fd[1], lowestTarget);
+
+        // Check if the coordinates of the lowest ID target match the drone coordinates
+        if (targets[lowestIndex].x == droneX && targets[lowestIndex].y == droneY) {
+            // Update score and counter (reset timer)
+            if (counter > 400) {  // 400 * 50ms = 20,000ms = 20 seconds 
+                score += 2;
+            }
+            else if (counter > 200) {  // 200 * 50ms = 10,000ms = 10 seconds 
+                score += 6;
+            }
+            else if (counter > 100) {  // 100 * 50ms = 5000ms = 5 seconds 
+                score += 8;
+            }
+            else {  // Les than 5 seconds
+                score += 10;
+            }
+            counter = 0;
+            // Remove the target with the lowest ID
+            removeTarget(targets, &numTargets, lowestIndex);
+        }
+
+        // Check if the drone has crashed into an obstacle
+        if (isDroneAtObstacle(obstacles, numObstacles, droneX, droneY)) {
+            // Update score
+            score -= 5;
+        }
+
+        //////////////////////////////////////////////////////
+        /* SECTION 4: DRAW THE WINDOW & OBTAIN INPUT*/
+        /////////////////////////////////////////////////////
+
+        // Create a string for the player's current score
+        sprintf(score_msg, "Your current score: %d", score);
+        // Draws the window with the updated information of the terminal size, drone, targets, obstacles and score.
+        draw_window(droneX, droneY, targets, numTargets, obstacles, numObstacles, score_msg);
+
+        /* HANDLE THE KEY PRESSED BY THE USER */
+        int ch;
+        if ((ch = getch()) != ERR)
+        {
+            // Write char to the pipe
+            char msg[MSG_LEN];
+            sprintf(msg, "%c", ch);
+            // Send it directly to key_manager.c
+            write_to_pipe(key_press_fd[1], msg);
+        }
+        flushinp(); // Clear the input buffer
+
+        // Counter/Timer linked to score calculations
+        counter++;
+        usleep(50000);
+    }
+
+    /* cleanup */
+    endwin(); 
+
+    return 0;
+}
+
+// Function to find the index of the target with the lowest ID.
+int findLowestID(Targets *targets, int numTargets) {
+    int lowestID = targets[0].id;
+    int lowestIndex = 0;
+    for (int i = 1; i < numTargets; i++) {
+        if (targets[i].id < lowestID) {
+            lowestID = targets[i].id;
+            lowestIndex = i;
+        }
+    }
+    return lowestIndex;
+}
 
 
+// Function to remove a target at a given index from the array.
+void removeTarget(Targets *targets, int *numTargets, int indexToRemove)
+{
+    // Shift elements to fill the gap
+    for (int i = indexToRemove; i < (*numTargets - 1); i++)
+    {
+        targets[i] = targets[i + 1];
+    }
+    // Decrement the number of targets
+    (*numTargets)--;
+}
+
+
+// Function to extract the coordinates from the obstacles_msg string into the struct Obstacles.
+void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
+{
+    int totalObstacles;
+    sscanf(obstacles_msg, "O[%d]", &totalObstacles);
+
+    char *token = strtok(obstacles_msg + 4, "|");
+    *numObstacles = 0;
+
+    while (token != NULL && *numObstacles < totalObstacles)
+    {
+        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
+        obstacles[*numObstacles].total = *numObstacles + 1;
+
+        token = strtok(NULL, "|");
+        (*numObstacles)++;
+    }
+}
+
+
+// Function to extract the coordinates from the targets_msg string into the struct Targets.
+void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets)
+{
+    char *token = strtok(targets_msg + 4, "|");
+    *numTargets = 0;
+
+    while (token != NULL)
+    {
+        sscanf(token, "%d,%d", &targets[*numTargets].x, &targets[*numTargets].y);
+        targets[*numTargets].id = *numTargets + 1;
+
+        token = strtok(NULL, "|");
+        (*numTargets)++;
+    }
+}
+
+
+// Function to check if drone is at the same coordinates as any obstacle.
+int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY)
+{
+    for (int i = 0; i < numObstacles; i++) {
+        if (obstacles[i].x == droneX && obstacles[i].y == droneY)
+        {
+            return 1;  // Drone is at the same coordinates as an obstacle
+        }
+    }
+    return 0;  // Drone is not at the same coordinates as any obstacle
+}
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 
 {
     // printf(" Received signal number: %d \n", signo);
-    if( signo == SIGINT)
+    if ( signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-        // close all semaphores
-        sem_close(sem_key);
-        sem_close(sem_pos);
-
-        printf("Succesfully closed all semaphores\n");
-        sleep(10);
+        //sleep(2);
         exit(1);
     }
     if (signo == SIGUSR1)
@@ -52,102 +305,42 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
-int main()
-{
-    struct sigaction sa;
-    sa.sa_sigaction = signal_handler;
-    sa.sa_flags = SA_SIGINFO;
-    sigaction (SIGINT, &sa, NULL);  
-    sigaction (SIGUSR1, &sa, NULL);    
-  
-    publish_pid_to_wd(WINDOW_SYM, getpid());
-
-    // Shared memory for KEY PRESSING
-    shm_key_fd = shm_open(SHM_KEY, O_RDWR, 0666);
-    ptr_key = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_key_fd, 0);
-
-    // Shared memory for DRONE POSITION
-    shm_pos_fd = shm_open(SHM_POS, O_RDWR, 0666);
-    ptr_pos = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_pos_fd, 0);
-
-    sem_key = sem_open(SEM_KEY, 0);
-    sem_pos = sem_open(SEM_POS, 0);
-
-    
-    /* INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS */
-    initscr();
-    timeout(0);
-    curs_set(0);
-    start_color();
-    init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone color
-    noecho(); // Disable echoing
-
-    /* Set initial drone position */
-    int maxY, maxX;
-    getmaxyx(stdscr, maxY, maxX);
-    int droneX = maxX / 2; // Middle of the screen
-    int droneY = maxY / 2;
-    // Write initial drone position in its corresponding shared memory
-    sprintf(ptr_pos, "%d,%d,%d,%d", droneX, droneY, maxX, maxY);
-
-
-    while (1)
-    {
-        sem_wait(sem_pos); // Waits for drone process
-        
-        // Obtain the position values from shared memory
-        sscanf(ptr_pos, "%d,%d,%d,%d", &droneX, &droneY, &maxX, &maxY);  
-
-        createWindow(maxX, maxY);
-        drawDrone(droneX, droneY);
-        handleInput(ptr_key, sem_key);
-
-        sem_post(sem_key);    // unlocks to allow keyboard manager
-    }
-
-    /* cleanup */
-    endwin(); 
-
-    /* Close shared memories and semaphores */
-    close(shm_key_fd);
-    close(shm_pos_fd);
-    sem_close(sem_key);
-    sem_close(sem_pos);
-
-    return 0;
-}
-
-
-
-void createWindow(int maxX, int maxY)
+void draw_window(int droneX, int droneY, Targets *targets, int numTargets,
+                 Obstacles *obstacles, int numObstacles, const char *score_msg)
 {
     clear();
 
-    /* get dimensions of the screen */ // Dynamical window frame
-    int new_maxY, new_maxX;
-    getmaxyx(stdscr, new_maxY, new_maxX);
+    /* get dimensions of the screen */
+    int max_y, max_x;
+    getmaxyx(stdscr, max_y, max_x);
+
     box(stdscr, 0, 0);  // Draw a rectangular border using the box function
-   
+    refresh();
+
     // Print a title in the top center part of the window
-    mvprintw(0, (new_maxX - 11) / 2, "Drone Control"); 
+    mvprintw(0, (max_x - 11) / 2, "%s", score_msg);
 
-    refresh(); // Apply changes 
-}
-
-void drawDrone(int droneX, int droneY)
-{
     // Draw a plus sign to represent the drone
     mvaddch(droneY, droneX, '+' | COLOR_PAIR(1));
     refresh();
+
+    // Draw obstacles on the board
+    for (int i = 0; i < numObstacles; i++) {
+        mvaddch(obstacles[i].y, obstacles[i].x, 'O' ); // Assuming 'O' represents obstacles
+        refresh();
+    }
+    
+
+    // Draw targets on the board
+    for (int i = 0; i < numTargets; i++) {
+        mvaddch(targets[i].y, targets[i].x, targets[i].id + '0');
+        refresh();
+    }
 }
 
-void handleInput(int *sharedKey, sem_t *semaphore)
+
+void get_args(int argc, char *argv[])
 {
-    int ch;
-    if ((ch = getch()) != ERR)
-    {
-        *sharedKey = ch;    // Store the pressed key in shared memory
-    }
-    // echo(); // Re-enable echoing
-    flushinp(); // Clear the input buffer
+    sscanf(argv[1], "%d %d %d %d", &key_press_fd[1], &server_interface[0], 
+    &interface_server[1], &lowest_target_fd[1]);
 }

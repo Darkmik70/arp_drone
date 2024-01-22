@@ -10,5 +10,6 @@
 */
 void publish_pid_to_wd(char process_symbol, pid_t pid);
 
+void write_to_pipe(int pipe_fd, char message[]);
 
 #endif // UTIL_H

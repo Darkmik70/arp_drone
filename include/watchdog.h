@@ -3,7 +3,7 @@
 
 #include<sys/types.h>
 
-#define THRESHOLD 5 // Threshold for counters
+#define THRESHOLD 50 // Threshold for counters
 
 /**
  * Get PIDs from other processes.
@@ -12,7 +12,7 @@
  * When PIDs are retrieves it sends a signal to Server to unlink semaphores and shared memory.
  * 
 */
-int get_pids(pid_t *server_pid, pid_t *window_pid, pid_t *km_pid, pid_t *drone_pid);
+int get_pids(pid_t *server_pid, pid_t *window_pid, pid_t *km_pid, pid_t *drone_pid /*, pid_t *logger_pid*/);
 
 /**
  * Sends SIGINT signal to all processes and exits afterwards

@@ -1,6 +1,7 @@
 #include "constants.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -11,6 +12,7 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <signal.h>
+
 
 void publish_pid_to_wd(int process_symbol, pid_t pid)
 {   
@@ -29,12 +31,36 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
     sem_wait(sem_wd_3);
     // Allow other processes to do that. 
     sem_post(sem_wd_1);
-
     // PID's published, close your connections
     sem_close(sem_wd_1);
     sem_close(sem_wd_2);
     sem_close(sem_wd_3);
-
     // Detach from shared memorry
     munmap(ptr_wd,SIZE_SHM);
 }
+
+// Pipe functions
+void write_to_pipe(int pipe_fd, char message[])
+{
+    ssize_t bytes_written = write(pipe_fd, message, MSG_LEN );
+    if (bytes_written == -1)
+    {
+        perror("Write went wrong");
+        exit(1);
+    }
+}
+
+// TODO: add to util.h and add comments
+void log_msg(int who, int type, char *msg)
+{
+    int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
+    void *ptr_logs = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_logs_fd, 0);
+
+    // unsure if it will work
+    sprintf(ptr_logs, "%i|%i|%s", who, type, msg);
+
+    // Detach from shared memorry
+    munmap(ptr_logs,SIZE_SHM);
+    close(shm_logs_fd);
+}
+

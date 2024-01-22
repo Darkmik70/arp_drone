@@ -10,31 +10,108 @@
 #include <sys/types.h>
 
 
+// Serverless pipes (fd)
+int key_press_fd[2];
+int lowest_target_fd[2];
+
+// New pipes working with server (fd)
+int km_server[2];
+int server_drone[2];
+int interface_server[2];
+int drone_server[2];
+int server_interface[2];
+int server_obstacles[2];
+int obstacles_server[2];
+int server_targets[2];
+int targets_server[2];
+
 int main(int argc, char *argv[])
 {
+    // PIDs
     pid_t server_pid;
     pid_t window_pid;
     pid_t km_pid;
     pid_t drone_pid;
     pid_t wd_pid;
+    pid_t logger_pid;
+    pid_t targets_pid;
+    pid_t obstacles_pid;
+
+    // Serverless pipe creation
+    if (pipe(key_press_fd) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(lowest_target_fd) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+
+    // Pipe creation: To server
+    if (pipe(km_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(drone_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(obstacles_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(targets_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+
+    // Pipe creation: From server
+    if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_interface) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_obstacles) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_targets) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    
+    // Passing file descriptors for pipes used on server.c
+    char server_fds[80];
+    sprintf(server_fds, "%d %d %d %d %d %d %d %d %d", km_server[0], server_drone[1], 
+    interface_server[0], drone_server[0], server_interface[1], server_obstacles[1], 
+    obstacles_server[0], server_targets[1], targets_server[0]);
+
+    // Passing file descriptors for pipes used on key_manager.c
+    char key_manager_fds[80];
+    sprintf(key_manager_fds, "%d %d", key_press_fd[0], km_server[1]);
+
+    // Passing file descriptors for pipes used on interface.c
+    char interface_fds[80];
+    sprintf(interface_fds, "%d %d %d %d", key_press_fd[1], server_interface[0],
+    interface_server[1], lowest_target_fd[1]);
+
+    // Passing file descriptors for pipes used on drone.c
+    char drone_fds[80];
+    sprintf(drone_fds, "%d %d %d", server_drone[0], drone_server[1], lowest_target_fd[0]);
+
+    // Passing file descriptors for pipes used on obstacles.c
+    char obstacles_fds[80];
+    sprintf(obstacles_fds, "%d %d", server_obstacles[0], obstacles_server[1]);
+
+    // Passing file descriptors for pipes used on targets.c
+    char targets_fds[80];
+    sprintf(targets_fds, "%d %d", server_targets[0], targets_server[1]);
+
 
     int delay = 100000; // Time delay between next spawns
     int p_num = 0;  // number of processes
 
-    /* Server  */
-    char* server_args[] = {"konsole", "-e", "./build/server", NULL};
+
+    /* Server */
+    char* server_args[] = {"konsole", "-e", "./build/server", server_fds, NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
-    usleep(delay*10); //little bit more time for server
+    usleep(delay*10); // little bit more time for server
+
+    /* Targets */
+    char* targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
+    targets_pid = create_child(targets_args[0], targets_args);
+    p_num++;
+    usleep(delay);
+
+    /* Obstacles */
+    char* obstacles_args[] = {"konsole", "-e", "./build/obstacles", obstacles_fds, NULL};
+    obstacles_pid = create_child(obstacles_args[0], obstacles_args);
+    p_num++;
+    usleep(delay);
 
     /* Keyboard manager */
-    char* km_args[] = {"konsole", "-e", "./build/key_manager", NULL};
+    char* km_args[] = {"konsole", "-e", "./build/key_manager", key_manager_fds, NULL};
     km_pid = create_child(km_args[0], km_args);
     p_num++;
     usleep(delay);
 
     /* Drone */
-    char* drone_args[] = {"konsole", "-e", "./build/drone", NULL};
+    char* drone_args[] = {"konsole", "-e", "./build/drone", drone_fds, NULL};
     drone_pid = create_child(drone_args[0], drone_args);
     p_num++;
     usleep(delay);
@@ -46,10 +123,16 @@ int main(int argc, char *argv[])
     printf("Watchdog Created\n");
 
     /* Window - Interface */
-    char* ui_args[] = {"konsole", "-e", "./build/interface", NULL};
-    window_pid = create_child(ui_args[0], ui_args);
+    char* window_args[] = {"konsole", "-e", "./build/interface", interface_fds, NULL};
+    window_pid = create_child(window_args[0], window_args);
     p_num++;
     usleep(delay);
+
+    // /* Logger */ 
+    // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
+    // logger_pid = create_child(logger_args[0], logger_args);
+    // p_num++;
+    // usleep(delay);
 
     /* Wait for all children to close */
     for (int i = 0; i < p_num; i++)
@@ -62,7 +145,6 @@ int main(int argc, char *argv[])
             printf("Child process with PID: %i terminated with exit status: %i\n", pid, WEXITSTATUS(status));
         }
     }
-
     printf("All child processes closed, closing main process...\n");
     return 0;
 }
@@ -78,7 +160,6 @@ int create_child(const char *program, char **arg_list)
     }
     else if (child_pid == 0)
     {   
-        // This is where child goes
         execvp(program, arg_list);
     }
     else
