@@ -26,16 +26,6 @@ int key_press_fd[2];
 int interface_server[2];
 int server_interface[2];
 
-int decypher_message(char server_msg[]) {
-    if (server_msg[0] == 'D') {
-        return 1;
-    } else if (server_msg[0] == 'T') {
-        return 2;
-    } else if (server_msg[0] == 'O') {
-        return 3;
-    }
-    else {return 0;}
-}
 
 int main(int argc, char *argv[])
 {
@@ -102,7 +92,7 @@ int main(int argc, char *argv[])
         /////////////////////////////////////////////////////
 
         getmaxyx(stdscr, screen_size_y, screen_size_x); 
-        /*SEND x,y screen dimensions to server when screen size changes*/
+        /*SEND x,y  to server ONLY when screen size changes*/
         if (screen_size_x != prev_screen_size_x ||
          screen_size_y != prev_screen_size_y) {
             // Update previous values
@@ -111,7 +101,6 @@ int main(int argc, char *argv[])
             // Send data
             char screen_msg[MSG_LEN];
             sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
-            // Send it directly to key_manager.c
             write_to_pipe(interface_server[1], screen_msg);
          }
 
@@ -137,7 +126,6 @@ int main(int argc, char *argv[])
                 sscanf(server_msg, "D:%d,%d", &droneX, &droneY);
             }
             else if (server_msg[0] == 'O'){
-                //strcpy(obstacles_msg, server_msg);
                 parseObstaclesMsg(server_msg, obstacles, &numObstacles);
                 obtained_obstacles = 1;
             }

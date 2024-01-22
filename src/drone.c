@@ -25,16 +25,6 @@
 int server_drone[2];
 int drone_server[2];
 
-int decypher_message(const char *server_msg) {
-    if (server_msg[0] == 'K') {
-        return 1;
-    } else if (server_msg[0] == 'I' && server_msg[1] == '1') {
-        return 2;
-    } else if (server_msg[0] == 'I' && server_msg[1] == '2') {
-        return 3;
-    }
-    else {return 0;}
-}
 
 int main(int argc, char *argv[]) 
 {
@@ -48,20 +38,27 @@ int main(int argc, char *argv[])
 
     publish_pid_to_wd(DRONE_SYM, getpid());
 
-    usleep(SLEEP_DRONE); // To let the interface.c process execute first and write the initial positions.
-
     // Variable declaration
     int x; int y;
     int screen_size_x; int screen_size_y;
     int actionX; int actionY;
     double pos_x; double pos_y;
+
     // Initial values
     double Vx = 0.0; double Vy = 0.0;
     double forceX = 0.0; double forceY = 0.0;
+    int obtained_obstacles = 0;
+
+    // Targets and obstacles
+    Obstacles obstacles[80];
+    int numObstacles;
 
     while (1)
     {
-        /* READ the pipe from SERVER*/
+        //////////////////////////////////////////////////////
+        /* SECTION 1: READ DATA FROM SERVER */
+        /////////////////////////////////////////////////////
+
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(server_drone[0], &read_fds);
@@ -77,45 +74,57 @@ int main(int argc, char *argv[])
         if (ready > 0 && FD_ISSET(server_drone[0], &read_fds)) {
             ssize_t bytes_read = read(server_drone[0], server_msg, MSG_LEN);
             if (bytes_read > 0){
-                if(decypher_message(server_msg) == 1){
+                // Message origin: Keyboard Manager
+                if (server_msg[0] == 'K'){
                     sscanf(server_msg, "K:%d,%d", &actionX, &actionY);
                 }
-                else if(decypher_message(server_msg) == 2){
+                // Message origin: Interface
+                else if (server_msg[0] == 'I' && server_msg[1] == '1'){
                     sscanf(server_msg, "I1:%d,%d,%d,%d", &x, &y, &screen_size_x, &screen_size_y);
                     printf("Obtained initial parameters from server: %s\n", server_msg);
                     pos_x = (double)x;
                     pos_y = (double)y;
                     fflush(stdout);
                 }
-                else if(decypher_message(server_msg) == 3){
+                // Message origin: Interface
+                else if (server_msg[0] == 'I' && server_msg[1] == '2'){
                     sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
                     printf("Changed screen dimensions to: %s\n", server_msg);
                     fflush(stdout);
                 }
+                // Message origin: Obstacles
+                else if (server_msg[0] == 'O'){
+                    printf("Obtained obstacles message: %s\n", server_msg);
+                    parseObstaclesMsg(server_msg, obstacles, &numObstacles);
+                    obtained_obstacles = 1;
+                }
             }
         } else { actionX = 0; actionY = 0;}
 
-
-        /* Convert the action number read into force for the drone */ 
-
-        // Initial external force
-        double ext_forceX = 0.0; 
-        double ext_forceY = 0.0; 
-
-        if (abs(actionX) <= 1.0) // Only values between -1 to 1 are used to move the drone
-        {
-        forceX += (double)actionX;
-        forceY += (double)actionY;
-        /* Capping to the max value of force */
-        if (forceX > F_MAX){forceX = F_MAX;}
-        if (forceX < -F_MAX){forceX = -F_MAX;}
-        if (forceY > F_MAX){forceY = F_MAX;}
-        if (forceY < -F_MAX){forceY = -F_MAX;}
+        char obstacles_msg[] = "O[1]200,200"; // Random for initial execution
+        if (obtained_obstacles == 0){
+            parseObstaclesMsg(obstacles_msg, obstacles, &numObstacles);
         }
-        // For now, other values for action represent a STOP command.
-        else{forceX = 0.0,forceY = 0.0;}
+        
+        //////////////////////////////////////////////////////
+        /* SECTION 2: OBTAIN THE FORCES EXERTED ON THE DRONE*/
+        /////////////////////////////////////////////////////  
 
-        /* Calculate the EXTERNAL FORCE from obstacles and targets */
+        /* INTERNAL FORCE from the drone itself */
+        if (abs(actionX) <= 1.0){ // Only values between -1 to 1 are used to move the drone
+            forceX += (double)actionX;
+            forceY += (double)actionY;
+            /* Capping to the max value of the drone's force */
+            if (forceX > F_MAX){forceX = F_MAX;}
+            if (forceX < -F_MAX){forceX = -F_MAX;}
+            if (forceY > F_MAX){forceY = F_MAX;}
+            if (forceY < -F_MAX){forceY = -F_MAX;}
+        }
+        else{forceX = 0.0,forceY = 0.0;} // Other values represent STOP
+
+        /* EXTERNAL FORCE from obstacles and targets */
+        double ext_forceX = 0.0; 
+        double ext_forceY = 0.0;
 
         // TARGETS
         // TODO: Obtain the string for targets_msg from a pipe from (interface.c)
@@ -124,18 +133,15 @@ int main(int argc, char *argv[])
         sscanf(targets_msg, "%lf,%lf", &target_x, &target_y);
         calculateExtForce(pos_x, pos_y, target_x, target_y, 0.0, 0.0, &ext_forceX, &ext_forceY);
 
-        // OBSTACLES
-        // TODO: Obtain the string for targets_msg from a pipe from (server.c) that comes originally from (obstacles.c)
-        char obstacles_msg[] = "O[7]35,11|100,5|16,30|88,7|130,40|53,15|60,10";
-        Obstacles obstacles[30];
-        int numObstacles;
-        parseObstaclesMsg(obstacles_msg, obstacles, &numObstacles);
 
         for (int i = 0; i < numObstacles; i++) {
             calculateExtForce(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
         }
         
-        // Using the euler method to obtain the new position for the drone, according to the forces.
+        //////////////////////////////////////////////////////
+        /* SECTION 3: CALCULATE POSITION DATA */
+        ///////////////////////////////////////////////////// 
+
         double max_x = (double)screen_size_x;
         double max_y = (double)screen_size_y;
         eulerMethod(&pos_x, &Vx, forceX, ext_forceX, &max_x);
@@ -154,7 +160,10 @@ int main(int argc, char *argv[])
         int xf = (int)round(pos_x);
         int yf = (int)round(pos_y);
 
-        // Using pipes write this data so it can be read from (interface.c)
+        //////////////////////////////////////////////////////
+        /* SECTION 4: SEND THE DRONE POSITION TO SERVER */
+        ///////////////////////////////////////////////////// 
+
         char position_msg[MSG_LEN];
         sprintf(position_msg, "D:%d,%d", xf, yf);
         write_to_pipe(drone_server[1], position_msg);
@@ -211,7 +220,6 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
         *ext_forceX += 0;
         *ext_forceY += 0;  
     }
-
 
     // ***Calculate REPULSION force from the obstacle***
     double distanceToObstacle = sqrt(pow(obstacleX - droneX, 2) + pow(obstacleY - droneY, 2));

@@ -1,18 +1,20 @@
-/*THIS CODE GENERATES THE COORDINATES FOR THE TARGETS. IT WORKS THE FOLLOWING WAY:
-1. It analyzes the screen dimensions so it can create even sections.
-2. While the coordinates are random, they are still distributed by section, so it 
-is way less messy.
-(SECTIONS) Hardcoded into 6 sections: top center, bottom left, top right, etc...
+#include "targets.h"
+#include "util.h"
 
-THIS IS MISSING:
-1. THE CONNECTION TO THE INTERFACE.C SO THE OBSTACLES CAN BE DRAWN
-2. THE CONNECTION TO THE MAIN, SERVER, WATCHDOG */
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
-#include "targets.h"
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/mman.h>
+#include <sys/select.h>
+#include <sys/stat.h>
+
+#include <signal.h>
+
 
 int main() {
     int counter = 0;
