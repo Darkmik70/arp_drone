@@ -23,5 +23,12 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
 */
 char* determineAction(int pressedKey);
 
+/**
+ * KEY_MANAGER sends message to logger process of type INFO
+ * 
+ * @param msg - character string with message
+*/
+void log_msg(char *msg);
+
 
 #endif // KEY_MANAGER_H

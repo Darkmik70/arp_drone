@@ -40,7 +40,9 @@ void *ptr_logs;
 sem_t *sem_key;                         // Semaphore for key presses
 sem_t *sem_pos;                         // Semaphore for drone positions
 sem_t *sem_action;                      // Semaphore for actions
-sem_t *sem_logs;
+sem_t *sem_logs_1;
+sem_t *sem_logs_2;
+sem_t *sem_logs_3;
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
 // TODO: Obtain the messages from obstacles and targets using pipes.
@@ -75,33 +77,22 @@ int main(int argc, char *argv[])
 
     // Shared memory for LOGS
     ptr_logs = create_shm(SHM_LOGS);
-    sem_logs = sem_open(SEM_LOGS, O_CREAT, S_IRUSR | S_IWUSR, 0); // this dude is locked
-    if (sem_logs == SEM_FAILED) {
-        perror("sem_logs failed");
+    sem_logs_1 = sem_open(SEM_LOGS_1, O_CREAT, S_IRUSR | S_IWUSR, 0); // this dude is locked
+    if (sem_logs_1 == SEM_FAILED) {
+        perror("sem_logs_1 failed");
+        exit(1);
+    }
+    sem_logs_2 = sem_open(SEM_LOGS_2, O_CREAT, S_IRUSR | S_IWUSR, 0); 
+    if (sem_logs_2 == SEM_FAILED) {
+        perror("sem_logs_2 failed");
+        exit(1);
+    }
+    sem_logs_3 = sem_open(SEM_LOGS_3, O_CREAT, S_IRUSR | S_IWUSR, 0); 
+    if (sem_logs_3 == SEM_FAILED) {
+        perror("sem_logs_3 failed");
         exit(1);
     }
 
-    // Shared memory for KEY PRESSING
-    ptr_key = create_shm(SHM_KEY);
-    sem_key = sem_open(SEM_KEY, O_CREAT, S_IRUSR | S_IWUSR, 0);
-    if (sem_key == SEM_FAILED) {
-        perror("sem_key failed");
-        exit(1);
-    }
-    // Shared memory for DRONE POSITION
-    ptr_pos = create_shm(SHM_POS);
-    sem_pos = sem_open(SEM_POS, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    if (sem_pos == SEM_FAILED) {
-        perror("sem_pos failed");
-        exit(1);
-    }
-    // Shared memory for DRONE ACTION
-    ptr_action = create_shm(SHM_ACTION);
-    sem_action = sem_open(SEM_ACTION, O_CREAT, S_IRUSR | S_IWUSR, 1);
-    if (sem_pos == SEM_FAILED) {
-        perror("sem_pos failed");
-        exit(1);
-    }
 
     // When all shm are created publish your pid to WD
     publish_pid_to_wd(SERVER_SYM, getpid());

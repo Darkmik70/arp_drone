@@ -22,7 +22,10 @@
 
 // Shared memory key for LOGS
 #define SHM_LOGS "/shared_logs"
-#define SEM_LOGS "/my_semaphore_4"
+#define SEM_LOGS_1 "/my_semaphore_logs_1"
+#define SEM_LOGS_2 "/my_semaphore_logs_2"
+#define SEM_LOGS_3 "/my_semaphore_logs_3"
+
 
 // Pipes
 #define MSG_LEN 240

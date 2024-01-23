@@ -55,8 +55,10 @@ int main(int argc, char *argv[])
         
         // Read from the file descriptor
         int pressedKey = read_key_from_pipe(key_press_fd_read);
-        printf("Pressed key: %c\n", (char)pressedKey);
-        fflush(stdout);
+        // char msg_pressed_key[240];
+        /*s*/printf(/*msg_pressed_key,*/"Pressed key: %c\n", (char)pressedKey);
+        // log_msg(msg_pressed_key);
+
 
         /*THIS SECTION IS FOR DRONE ACTION DECISION*/
         
@@ -70,7 +72,9 @@ int main(int argc, char *argv[])
         if ( action != "None")
         {
             write_to_pipe(km_server_write, action);
-            printf("Wrote action message: %s into pipe\n", action);
+            // char msg[MSG_LEN];
+            /*s*/printf(/*msg,*/"Wrote action message: %s into pipe\n", action);
+            // log_msg(msg);
         }
     }
 
@@ -181,4 +185,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
         kill(wd_pid, SIGUSR2);
         // printf("SIGUSR2 SENT SUCCESSFULLY\n");
     }
+}
+
+void log_msg(char *msg)
+{
+    write_message_to_logger(KM_SYM, INFO, msg);
 }

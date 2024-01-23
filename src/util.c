@@ -51,16 +51,34 @@ void write_to_pipe(int pipe_fd, char message[])
 }
 
 // TODO: add to util.h and add comments
-void log_msg(int who, int type, char *msg)
+void write_message_to_logger(int who, int type, char *msg)
 {
     int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
     void *ptr_logs = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_logs_fd, 0);
 
+    sem_t *sem_logs_1 = sem_open(SEM_LOGS_1, 0);
+    sem_t *sem_logs_2 = sem_open(SEM_LOGS_2, 0);
+    sem_t *sem_logs_3 = sem_open(SEM_LOGS_3, 0);
+
+    sem_wait(sem_logs_1);
+
     // unsure if it will work
     sprintf(ptr_logs, "%i|%i|%s", who, type, msg);
+
+    // Message is ready to be read
+    sem_post(sem_logs_2);
+
+    // wait for logger to finish writing
+    sem_wait(sem_logs_3);
+
+    // allow other processes to log their messages
+    sem_post(sem_logs_1);
 
     // Detach from shared memorry
     munmap(ptr_logs,SIZE_SHM);
     close(shm_logs_fd);
+    sem_close(sem_logs_1);
+    sem_close(sem_logs_2);
+    sem_close(sem_logs_3);
 }
 
