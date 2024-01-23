@@ -51,10 +51,9 @@ int main(int argc, char *argv[])
 
     /* SET INITIAL DRONE POSITION */
     // Obtain the screen dimensions
-    int screen_size_y, screen_size_x;
-    int prev_screen_size_y = 0;
-    int prev_screen_size_x = 0;
-    getmaxyx(stdscr, screen_size_y, screen_size_x); 
+    int screen_size_y; 
+    int screen_size_x;
+    getmaxyx(stdscr, screen_size_y, screen_size_x);
     // Initial drone position will be the middle of the screen.
     int droneX = screen_size_x / 2;
     int droneY = screen_size_y / 2;;
@@ -65,12 +64,15 @@ int main(int argc, char *argv[])
 
     /* Useful variables creation*/
     // To compare current and previous data
-    char prev_lowest_target[] = "";
     int obtained_targets = 0;
     int obtained_obstacles = 0;
-    // For game score calculation
-    int score = 0;
+    int prev_screen_size_y = 0;
+    int prev_screen_size_x = 0;
+    int original_screen_size_x;
+    int original_screen_size_y;
+    // For game logic
     char score_msg[MSG_LEN];
+    int score = 0;
     int counter = 0;
     // Timeout
     struct timeval timeout;
@@ -79,28 +81,47 @@ int main(int argc, char *argv[])
 
     // Targets and obstacles
     Targets targets[80];
+    Targets original_targets[80];
     int numTargets;
 
     Obstacles obstacles[80];
     int numObstacles;
 
+    int iteration = 0;
     while (1)
     {   
         //////////////////////////////////////////////////////
-        /* SECTION 1: SEND SCREEN DIMENSIONS TO SERVER */
+        /* SECTION 1: SCREEN DIMENSIONS: SEND & RE-SCALE */
         /////////////////////////////////////////////////////
 
         getmaxyx(stdscr, screen_size_y, screen_size_x); 
+
         /*SEND x,y  to server ONLY when screen size changes*/
-        if (screen_size_x != prev_screen_size_x ||
-         screen_size_y != prev_screen_size_y) {
-            // Update previous values
-            prev_screen_size_x = screen_size_x;
-            prev_screen_size_y = screen_size_y;
+        if (screen_size_x != prev_screen_size_x || screen_size_y != prev_screen_size_y) {
+            // To avoid division by 0 on first iteration
+            if (iteration == 0){
+                prev_screen_size_x = screen_size_x;
+                prev_screen_size_y = screen_size_y;
+                original_screen_size_x = screen_size_x;
+                original_screen_size_y = screen_size_y;
+                iteration++;
+            }
             // Send data
             char screen_msg[MSG_LEN];
             sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
             write_to_pipe(interface_server[1], screen_msg);
+            // Re-scale the targets on the screen
+            if (iteration > 0 && obtained_targets == 1){
+                float scale_x = (float)screen_size_x / (float) original_screen_size_x;
+                float scale_y = (float)screen_size_y / (float) original_screen_size_y;
+                for (int i = 1; i < numTargets; i++) {
+                    targets[i].x = (int)((float)original_targets[i].x * scale_x);
+                    targets[i].y = (int)((float)original_targets[i].y * scale_y);
+                }
+            }
+            // Update previous values
+            prev_screen_size_x = screen_size_x;
+            prev_screen_size_y = screen_size_y;
          }
 
         //////////////////////////////////////////////////////
@@ -129,7 +150,7 @@ int main(int argc, char *argv[])
                 obtained_obstacles = 1;
             }
             else if (server_msg[0] == 'T'){
-                parseTargetMsg(server_msg, targets, &numTargets);
+                parseTargetMsg(server_msg, targets, &numTargets, original_targets);
                 obtained_targets = 1;
             }
         }
@@ -145,6 +166,14 @@ int main(int argc, char *argv[])
         /* UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER */
         // Find the index of the target with the lowest ID
         int lowestIndex = findLowestID(targets, numTargets);
+
+        // When there are no more targets, the game is finished.
+        if (numTargets == 0){
+            draw_final_window(score);
+            exit(0);
+            }
+
+
         // Obtain the coordinates of that target
         char lowestTarget[20];
         sprintf(lowestTarget, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
@@ -154,13 +183,13 @@ int main(int argc, char *argv[])
         // Check if the coordinates of the lowest ID target match the drone coordinates
         if (targets[lowestIndex].x == droneX && targets[lowestIndex].y == droneY) {
             // Update score and counter (reset timer)
-            if (counter > 400) {  // 400 * 50ms = 20,000ms = 20 seconds 
+            if (counter > 2000) {  // 2000 * 10ms = 20 seconds 
                 score += 2;
             }
-            else if (counter > 200) {  // 200 * 50ms = 10,000ms = 10 seconds 
+            else if (counter > 1000) {  // 1000 * 10ms = 10 seconds 
                 score += 6;
             }
-            else if (counter > 100) {  // 100 * 50ms = 5000ms = 5 seconds 
+            else if (counter > 500) {  // 500 * 10ms = 5 seconds 
                 score += 8;
             }
             else {  // Les than 5 seconds
@@ -200,7 +229,7 @@ int main(int argc, char *argv[])
 
         // Counter/Timer linked to score calculations
         counter++;
-        usleep(50000);
+        usleep(10000);
     }
 
     /* cleanup */
@@ -257,16 +286,20 @@ void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstac
 
 
 // Function to extract the coordinates from the targets_msg string into the struct Targets.
-void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets)
+void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets)
 {
     char *token = strtok(targets_msg + 4, "|");
     *numTargets = 0;
 
     while (token != NULL)
     {
+        // Targets x,y will change throughout execution
         sscanf(token, "%d,%d", &targets[*numTargets].x, &targets[*numTargets].y);
         targets[*numTargets].id = *numTargets + 1;
-
+        // To save the original values
+        sscanf(token, "%d,%d", &original_targets[*numTargets].x, &original_targets[*numTargets].y);
+        original_targets[*numTargets].id = *numTargets + 1;
+        // Handle token
         token = strtok(NULL, "|");
         (*numTargets)++;
     }
@@ -303,6 +336,26 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
         kill(wd_pid, SIGUSR2);
         // printf("SIGUSR2 SENT SUCCESSFULLY\n");
     }
+}
+
+void draw_final_window(int score){
+    clear();
+    int max_y, max_x;
+    getmaxyx(stdscr, max_y, max_x);
+    box(stdscr, 0, 0);
+    refresh();
+    // Calculate the center of the screen
+    int center_y = max_y / 2;
+    int center_x = (max_x - 40) / 2;  // Adjusted for a message of length 30
+    // Print the message at the center of the screen
+    mvprintw(center_y, center_x, "Thank you for playing! Your final score is: %d", score);
+    mvprintw(center_y + 2, center_x, "This window will close automatically in 5 seconds");
+    // Refresh the screen to show the changes
+    refresh();
+    // Wait for user input before exiting
+    sleep(5);
+    // Cleanup, close ncurses and exit.
+    endwin();
 }
 
 void draw_window(int droneX, int droneY, Targets *targets, int numTargets,

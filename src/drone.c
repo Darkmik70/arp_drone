@@ -94,12 +94,12 @@ int main(int argc, char *argv[])
                 // Message origin: Interface
                 else if (server_msg[0] == 'I' && server_msg[1] == '2'){
                     sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
-                    printf("Changed screen dimensions to: %s\n", server_msg);
+                    // printf("Changed screen dimensions to: %s\n", server_msg);
                     fflush(stdout);
                 }
                 // Message origin: Obstacles
                 else if (server_msg[0] == 'O'){
-                    printf("Obtained obstacles message: %s\n", server_msg);
+                    // printf("Obtained obstacles message: %s\n", server_msg);
                     parseObstaclesMsg(server_msg, obstacles, &numObstacles);
                     obtained_obstacles = 1;
                 }
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
             ssize_t bytes_read_interface = read(lowest_target_fd[0], msg, MSG_LEN);
             if (bytes_read_interface > 0) {
                 // Read acknowledgement
-                printf("RECEIVED %s from interface.c\n", msg);
+                // printf("RECEIVED target %s from interface.c\n", msg);
                 sscanf(msg, "%d,%d", &target_x, &target_y);
                 fflush(stdout);
                 valid_target = 1;
@@ -164,6 +164,11 @@ int main(int argc, char *argv[])
         for (int i = 0; i < numObstacles; i++) {
             calculateExtForce(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
         }
+
+        if(ext_forceX > EXT_FORCE_MAX){ext_forceX = 0.0;}
+        if(ext_forceX < -EXT_FORCE_MAX){ext_forceX = 0.0;}
+        if(ext_forceY > EXT_FORCE_MAX){ext_forceY = 0.0;}
+        if(ext_forceY < -EXT_FORCE_MAX){ext_forceY = 0.0;}
         
         //////////////////////////////////////////////////////
         /* SECTION 3: CALCULATE POSITION DATA */

@@ -14,12 +14,13 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 void get_args(int argc, char *argv[]);
 
-void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets);
+void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets);
 
 int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY);
 
 void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles);
 
+void draw_final_window(int score);
 
 /**
  * Draw the window on the screen.
