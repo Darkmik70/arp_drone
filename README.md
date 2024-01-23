@@ -1,4 +1,4 @@
-# Assignment 1
+# Assignment 2
 This assignment represents the first part of the project for Advanced and Robot Programming course on UniGe in the winter semester 2023/2024. 
 
 The work has been performed by a team of two: Josue Tinoco and Michał Krępa *coolGoose*
@@ -59,6 +59,7 @@ The first part assumes first 6 components:
 - Targets
 - Obstacles
 - Watchdog
+- Logger
 
 For further details on all of the above mentioned components. please refer to the description below.
 
@@ -75,7 +76,8 @@ Server process is the heart of this project. It manages all communications regar
 When necessary, the server may read the contents of each data received in order to understand the appropiate destination for it. This way, each of the processes will only read specific data intended for them. 
 
 
-### Watchdog
+### Watchdog - Turned off
+**REMARK**: This process generated a lot of unstabilities that we couldnt solve in time, therefore we decided not to use it in this assignment. 
 Watchdog's job is to monitor the "health" of all of the processes, which means at this point if processes are running and not closed.
 
 During initialization it gets from special shared memory segment the PIDs of processes, (remember that in main we are running the wrapper process Konsole, so its not possible to get to know the actual PID from `fork()` in `main`, at this point at least).
@@ -115,8 +117,13 @@ The obstacles process also requires before the main loop to obtain the screen di
 
 At first, they are truly randomly generated throughout the entirety of the screen. Second, because the obstacles appear and dissapear at random intervals, it never stops sendind data to the server, updating the new coordinates for each obstacle. Many pre-defined variables directly affect the behavior of the creation of targets, which mostly relate to the minimun and maximum time they will appear on the screen, or the rate at which they are generated.
 
+### Logger - has issues
+Logger uses shared memory segment for getting the messages and writing them into a txt file with a timestamp of the session. **REMARK**: At this level this process has some issues that lead to the crash, that we couldn't solve for a while. Therefore we do not include the logger in the main run of the whole game.
+
 
 ### Further work
+- [ ] Rework of pipes to go back to shared memory
+- [ ] Solve issues regarding Watchdog and Logger
 - [ ] Improvement of the monitoring and logging processes
 - [ ] Use of sockets for communication with an external server
 
