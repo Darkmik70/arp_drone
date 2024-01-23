@@ -20,10 +20,9 @@
 #include <errno.h>
 
 // Serverless pipes
-int key_press_fd[2];
-
+int key_press_fd_read;
 // Pipes working with the server
-int km_server[2];
+int km_server_write;
 
 int main(int argc, char *argv[]) 
 {
@@ -45,17 +44,17 @@ int main(int argc, char *argv[])
         // Initializes the file descriptor set readset by clearing all file descriptors from it.
         FD_ZERO(&readset_km);
         // Adds key_pressing to the file descriptor set readset.
-        FD_SET(key_press_fd[0], &readset_km);
+        FD_SET(key_press_fd_read, &readset_km);
         
         int ready;
         // This waits until a key press is sent from (interface.c)
         do {
-            ready = select(key_press_fd[0] + 1, &readset_km, NULL, NULL, NULL);
+            ready = select(key_press_fd_read + 1, &readset_km, NULL, NULL, NULL);
             //if (ready == -1) {perror("Error in select");}
         } while (ready == -1 && errno == EINTR);
         
         // Read from the file descriptor
-        int pressedKey = read_key_from_pipe(key_press_fd[0]);
+        int pressedKey = read_key_from_pipe(key_press_fd_read);
         printf("Pressed key: %c\n", (char)pressedKey);
         fflush(stdout);
 
@@ -70,7 +69,7 @@ int main(int argc, char *argv[])
 
         if ( action != "None")
         {
-            write_to_pipe(km_server[1], action);
+            write_to_pipe(km_server_write, action);
             printf("Wrote action message: %s into pipe\n", action);
         }
     }
@@ -159,7 +158,7 @@ char* determineAction(int pressedKey)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &key_press_fd[0], &km_server[1]);
+    sscanf(argv[1], "%d %d", &key_press_fd_read, &km_server_write);
 }
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context) 
@@ -168,6 +167,10 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if  (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
+
+        close(key_press_fd_read);
+        close(km_server_write);
+        
         exit(1);
     }
     if (signo == SIGUSR1)

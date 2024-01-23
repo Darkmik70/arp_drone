@@ -12,14 +12,34 @@ void removeTarget(Targets *targets, int *numTargets, int indexToRemove);
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
+/**
+ * Read the arguments passed to the main function
+*/
 void get_args(int argc, char *argv[]);
 
+// Function to extract the coordinates from the targets_msg string into the struct Targets.
 void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets);
 
+
+/**
+ *  Function to check if drone is at the same coordinates as any obstacle.
+*/
 int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY);
 
+
+/**
+ * Extracts the coordinates from obstacles_msg and puts into strct Obstacles
+ * @param obstacles_msg - message to be read
+ * @param obstacles - struct Obstacles containing the obstacles
+ * @param numObstacles - number of obstacles 
+*/
 void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles);
 
+/**
+ * Draws end-game message
+ * 
+ * @param score - game score
+*/
 void draw_final_window(int score);
 
 /**

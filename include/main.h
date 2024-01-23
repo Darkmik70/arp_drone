@@ -4,6 +4,7 @@
 
 void create_pipes();
 
+void close_all_pipes();
 
 /**
  * Creates Child child process

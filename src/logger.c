@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     sigaction (SIGUSR1, &sa, NULL);   
 
     // when all shm are created publish your pid to WD
-    publish_pid_to_wd(LOGGER_SYM, getpid());
+    // publish_pid_to_wd(LOGGER_SYM, getpid());
 
     // Initialize shared memory for Logging
     shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
