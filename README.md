@@ -48,7 +48,7 @@ The center key `s` is used to STOP all forces on the drone. However, because the
 
 ## Overview 
 
-![Sketch of the architecture](architecture.jpg)
+![Sketch of the architecture](architecture_pipes.png)
 
 The first part assumes first 6 components:
 - Main
