@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <sys/ipc.h>
@@ -15,7 +16,6 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <string.h>
 #include <errno.h>
 
 
@@ -30,22 +30,15 @@ int obstacles_server[2];
 int server_targets[2];
 int targets_server[2];
 
-// GLOBAL VARIABLES
+// Shared memory and semaphores
 void *ptr_wd;                           // Shared memory for WD
-void *ptr_key;                          // Shared memory for Key pressing
-void *ptr_pos;                          // Shared memory for Drone Position
-void *ptr_action;                       // Shared memory ptr for actions
-void *ptr_logs;                 
+void *ptr_logs;                         // Shared memory ptr for logs
 
-sem_t *sem_key;                         // Semaphore for key presses
-sem_t *sem_pos;                         // Semaphore for drone positions
-sem_t *sem_action;                      // Semaphore for actions
 sem_t *sem_logs_1;
 sem_t *sem_logs_2;
 sem_t *sem_logs_3;
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
-// TODO: Obtain the messages from obstacles and targets using pipes.
 
 int main(int argc, char *argv[]) 
 {   
@@ -71,7 +64,7 @@ int main(int argc, char *argv[])
     }
     sem_wd_3 = sem_open(SEM_WD_3, O_CREAT, S_IRUSR | S_IWUSR, 0); // 0 for locked, this semaphore is unlocked by WD in order to get pids
     if (sem_wd_3 == SEM_FAILED) {
-        perror("sem_wd_2 failed");
+        perror("sem_wd_3 failed");
         exit(1);
     }
 
@@ -93,7 +86,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-
     // When all shm are created publish your pid to WD
     publish_pid_to_wd(SERVER_SYM, getpid());
 
@@ -105,9 +97,13 @@ int main(int argc, char *argv[])
     // To compare current and previous data
     char prev_drone_msg[MSG_LEN] = "";
 
+
     while (1)
     {
+        //////////////////////////////////////////////////////
         /* Handle pipe from key_manager.c */
+        /////////////////////////////////////////////////////
+        
         fd_set read_km;
         FD_ZERO(&read_km);
         FD_SET(km_server[0], &read_km);
@@ -132,7 +128,10 @@ int main(int argc, char *argv[])
             }
         }
 
+        //////////////////////////////////////////////////////
         /* Handle pipe from interface.c */
+        /////////////////////////////////////////////////////
+        
         fd_set read_interface;
         FD_ZERO(&read_interface);
         FD_SET(interface_server[0], &read_interface);
@@ -161,7 +160,9 @@ int main(int argc, char *argv[])
             }
         }
 
+        //////////////////////////////////////////////////////
         /* Handle pipe from drone.c */
+        /////////////////////////////////////////////////////
         fd_set read_drone;
         FD_ZERO(&read_interface);
         FD_SET(drone_server[0], &read_drone);
@@ -186,7 +187,10 @@ int main(int argc, char *argv[])
             else if (bytes_read_drone == -1) {perror("Read pipe drone_server");}
         }
 
+        //////////////////////////////////////////////////////
         /* Handle pipe from obstacles.c */
+        /////////////////////////////////////////////////////
+
         fd_set read_obstacles;
         FD_ZERO(&read_obstacles);
         FD_SET(obstacles_server[0], &read_obstacles);
@@ -214,7 +218,10 @@ int main(int argc, char *argv[])
             else if (bytes_read_obstacles == -1) {perror("Read pipe obstacles_server");}
         }
 
+        //////////////////////////////////////////////////////
         /* Handle pipe from targets.c */
+        /////////////////////////////////////////////////////
+
         fd_set read_targets;
         FD_ZERO(&read_targets);
         FD_SET(targets_server[0], &read_targets);
@@ -294,32 +301,20 @@ void *create_shm(char *name)
 void clean_up()
 {
     // close all connections
-    sem_close(sem_key);
-    sem_close(sem_pos);
-    sem_close(sem_action);
     sem_close(sem_wd_1);
     sem_close(sem_wd_2);
     sem_close(sem_wd_3);
 
     // unlink semaphores
-    sem_unlink(SEM_KEY);
-    sem_unlink(SEM_POS);
-    sem_unlink(SEM_ACTION);
     sem_unlink(SEM_WD_1);
     sem_unlink(SEM_WD_2);
     sem_unlink(SEM_WD_3);
 
     // unmap shared memory
     munmap(ptr_wd, SIZE_SHM);
-    munmap(ptr_key, SIZE_SHM);
-    munmap(ptr_pos, SIZE_SHM);
-    munmap(ptr_action, SIZE_SHM);
 
     // unlink shared memories
     shm_unlink(SHM_WD);
-    shm_unlink(SHM_KEY);
-    shm_unlink(SHM_POS);
-    shm_unlink(SHM_ACTION);
 
     printf("Clean up has been performed succesfully\n");
 }

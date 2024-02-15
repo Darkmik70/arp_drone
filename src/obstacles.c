@@ -1,5 +1,6 @@
 #include "obstacles.h"
 #include "util.h"
+#include "constants.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,15 +10,19 @@
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/select.h>
-#include <sys/stat.h>
 
+#include <semaphore.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <errno.h>
 
 // Pipes working with the server
 int server_obstacles[2];
 int obstacles_server[2];
+
 
 int main(int argc, char *argv[])
 {
@@ -57,7 +62,10 @@ int main(int argc, char *argv[])
         if (ready > 0 && FD_ISSET(server_obstacles[0], &read_fds)) {
             ssize_t bytes_read = read(server_obstacles[0], server_msg, MSG_LEN);
             if (bytes_read > 0) {
-                sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
+                float temp_scx, temp_scy;
+                sscanf(server_msg, "I2:%f,%f", &temp_scx, &temp_scy);
+                screen_size_x = (int)temp_scx;
+                screen_size_y = (int)temp_scy;
                 printf("Obtained from server: %s\n", server_msg);
                 fflush(stdout);
                 obtained_dimensions = 1;
@@ -80,9 +88,9 @@ int main(int argc, char *argv[])
             numObstacles++;
         }
 
-        // Print obstacles every second
+        // Print obstacles every (WAIT_TIME)
         obstacles_msg[0] = '\0'; // Clear the string
-        printObstacles(obstacles, numObstacles, obstacles_msg); // Instead of print, this string should be sent to server.c
+        printObstacles(obstacles, numObstacles, obstacles_msg); 
         sleep(WAIT_TIME);
 
         // Check if any obstacle has exceeded its spawn time
@@ -104,6 +112,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+
 void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[])
 {
     // Append the letter O and the total number of obstacles to obstacles_msg
@@ -111,7 +120,8 @@ void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[]
 
     for (int i = 0; i < numObstacles; ++i) {
         // Append obstacle information to obstacles_msg
-        sprintf(obstacles_msg + strlen(obstacles_msg), "%d,%d", obstacles[i].x, obstacles[i].y);
+        sprintf(obstacles_msg + strlen(obstacles_msg), "%.3f,%.3f", 
+        (float)obstacles[i].x, (float)obstacles[i].y);
 
         // Add a separator if there are more obstacles
         if (i < numObstacles - 1) {
@@ -121,6 +131,7 @@ void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[]
     printf("%s\n", obstacles_msg);
     fflush(stdout);
 }
+
 
 void get_args(int argc, char *argv[])
 {

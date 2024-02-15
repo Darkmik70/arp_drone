@@ -26,6 +26,9 @@
 #define SEM_LOGS_2 "/my_semaphore_logs_2"
 #define SEM_LOGS_3 "/my_semaphore_logs_3"
 
+// Shared memory key for OBSTACLES
+#define SHM_OBSTACLES "/shared_obstacles"
+#define SEM_OBSTACLES "/my_semaphore_obstacles"
 
 // Pipes
 #define MSG_LEN 240

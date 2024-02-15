@@ -149,9 +149,9 @@ char* determineAction(int pressedKey)
     }
     if ( key == 'S')
     {
-        x = 900;    // Special value interpreted by drone.c process
+        x = 10;    // Special value interpreted by drone.c process
         y = 0;
-        return "900,0";
+        return "10,0";
     }
     else
     {
@@ -171,10 +171,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if  (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-
         close(key_press_fd_read);
         close(km_server_write);
-        
         exit(1);
     }
     if (signo == SIGUSR1)

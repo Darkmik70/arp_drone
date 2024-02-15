@@ -12,7 +12,4 @@ void write_to_file(FILE *fp,char *msg);
 //TODO ADD COMMENTS
 void create_logfile_name(char *name);
 
-
-
-
 #endif // LOGGER_H

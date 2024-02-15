@@ -298,6 +298,7 @@ void eulerMethod(double *pos, double *vel, double force, double extForce, double
     if (*pos > *maxPos){*pos = *maxPos - 1;}
 }
 
+
 void get_args(int argc, char *argv[])
 {
     sscanf(argv[1], "%d %d %d", &server_drone[0], &drone_server[1], &lowest_target_fd[0]);

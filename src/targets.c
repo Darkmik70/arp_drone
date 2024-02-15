@@ -57,7 +57,10 @@ int main(int argc, char *argv[]) {
         if (ready > 0 && FD_ISSET(server_targets[0], &read_fds)) {
             ssize_t bytes_read = read(server_targets[0], server_msg, MSG_LEN);
             if (bytes_read > 0) {
-                sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
+                float temp_scx, temp_scy;
+                sscanf(server_msg, "I2:%f,%f", &temp_scx, &temp_scy);
+                screen_size_x = (int)temp_scx;
+                screen_size_y = (int)temp_scy;
                 printf("Obtained from server: %s\n", server_msg);
                 fflush(stdout);
                 obtained_dimensions = 1;
@@ -120,7 +123,8 @@ int main(int argc, char *argv[]) {
             // Construct the targets_msg string
             int offset = sprintf(targets_msg, "T[%d]", MAX_TARGETS);
             for (int i = 0; i < MAX_TARGETS; ++i) {
-                offset += sprintf(targets_msg + offset, "%d,%d", targets[i].x, targets[i].y);
+                offset += sprintf(targets_msg + offset, "%.3f,%.3f", 
+                                    (float)targets[i].x, (float)targets[i].y);
 
                 // Add a separator unless it's the last element
                 if (i < MAX_TARGETS - 1) {

@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
             }
             // Send data
             char screen_msg[MSG_LEN];
-            sprintf(screen_msg, "I2:%d,%d", screen_size_x, screen_size_y);
+            sprintf(screen_msg, "I2:%.3f,%.3f", (float)screen_size_x, (float)screen_size_y);
             write_to_pipe(server_interface[1], screen_msg);
             // Re-scale the targets on the screen
             if (iteration > 0 && obtained_targets == 1)
@@ -298,7 +298,13 @@ void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstac
 
     while (token != NULL && *numObstacles < totalObstacles)
     {
-        sscanf(token, "%d,%d", &obstacles[*numObstacles].x, &obstacles[*numObstacles].y);
+        float x_float, y_float;
+        sscanf(token, "%f,%f", &x_float, &y_float);
+
+        // Convert float to int (rounding is acceptable)
+        obstacles[*numObstacles].x = (int)(x_float + 0.5);
+        obstacles[*numObstacles].y = (int)(y_float + 0.5);
+
         obstacles[*numObstacles].total = *numObstacles + 1;
 
         token = strtok(NULL, "|");
@@ -313,12 +319,19 @@ void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Target
 
     while (token != NULL)
     {
-        // Targets x,y will change throughout execution
-        sscanf(token, "%d,%d", &targets[*numTargets].x, &targets[*numTargets].y);
+        float x_float, y_float;
+        sscanf(token, "%f,%f", &x_float, &y_float);
+
+        // Convert float to int (rounding is acceptable)
+        targets[*numTargets].x = (int)(x_float + 0.5);
+        targets[*numTargets].y = (int)(y_float + 0.5);
         targets[*numTargets].id = *numTargets + 1;
-        // To save the original values
-        sscanf(token, "%d,%d", &original_targets[*numTargets].x, &original_targets[*numTargets].y);
-        original_targets[*numTargets].id = *numTargets + 1;
+
+        // Save original values
+        original_targets[*numTargets].x = targets[*numTargets].x;
+        original_targets[*numTargets].y = targets[*numTargets].y;
+        original_targets[*numTargets].id = targets[*numTargets].id;
+
         // Handle token
         token = strtok(NULL, "|");
         (*numTargets)++;
