@@ -4,8 +4,8 @@
 
 // User-defined parameters
 #define MAX_OBSTACLES 7
-#define MIN_SPAWN_TIME 4
-#define MAX_SPAWN_TIME 10
+#define MIN_SPAWN_TIME 8
+#define MAX_SPAWN_TIME 15
 #define WAIT_TIME 1 // How often a new obstacle is created (if the number is below MAX_OBSTACLES)
 
 #include "constants.h"

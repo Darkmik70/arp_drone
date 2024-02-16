@@ -31,7 +31,7 @@
 #define SEM_OBSTACLES "/my_semaphore_obstacles"
 
 // Pipes
-#define MSG_LEN 240
+#define MSG_LEN 1024
 
 // Length for logfiles
 #define LOG_LEN 256

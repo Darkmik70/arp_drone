@@ -12,6 +12,11 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/select.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <sys/time.h>
 
 #include <semaphore.h>
 #include <signal.h>
@@ -39,6 +44,15 @@ sem_t *sem_logs_2;
 sem_t *sem_logs_3;
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
+char* read_then_echo(int sock);
+char* read_then_echo_unblocked(int sock);
+void write_then_wait_echo(int sock, const char *msg);
+
+void error(char *msg)
+{
+    perror(msg);
+    // exit(1);
+}
 
 int main(int argc, char *argv[]) 
 {   
@@ -48,7 +62,7 @@ int main(int argc, char *argv[])
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);    
-    sigaction (SIGUSR1, &sa, NULL);    
+    sigaction (SIGUSR1, &sa, NULL);
 
     // Shared memory and semaphores for WATCHDOG
     ptr_wd = create_shm(SHM_WD);
@@ -97,6 +111,42 @@ int main(int argc, char *argv[])
     // To compare current and previous data
     char prev_drone_msg[MSG_LEN] = "";
 
+    //////////////////////////////////////////////////////
+    /* SOCKET CREATION */
+    /////////////////////////////////////////////////////
+
+    int obstacles_sockfd = 0;
+    int targets_sockfd = 0;
+    int sockfd, newsockfd, portno, clilen, pid;
+    struct sockaddr_in serv_addr, cli_addr;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+    error("ERROR opening socket");
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    portno = 2000;  // Hard-coded port number
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (bind(sockfd, (struct sockaddr *) &serv_addr,
+            sizeof(serv_addr)) < 0) 
+            error("ERROR on binding");
+    listen(sockfd,5);
+    clilen = sizeof(cli_addr);
+
+    //////////////////////////////////////////////////////
+    /* HANDLE CLIENT CONNECTIONS */
+    /////////////////////////////////////////////////////
+  
+    while(targets_sockfd == 0 || obstacles_sockfd == 0){
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        if (newsockfd < 0) error("ERROR on accept");
+
+        char* socket_msg = read_then_echo(newsockfd);
+        if (socket_msg[0] == 'O'){obstacles_sockfd = newsockfd;}
+        else if(socket_msg[0] == 'T'){targets_sockfd = newsockfd;}
+        else {close(newsockfd);}
+    }
 
     while (1)
     {
@@ -300,22 +350,18 @@ void *create_shm(char *name)
 
 void clean_up()
 {
-    // close all connections
+    // Close all connections
     sem_close(sem_wd_1);
     sem_close(sem_wd_2);
     sem_close(sem_wd_3);
-
-    // unlink semaphores
+    // Unlink semaphores
     sem_unlink(SEM_WD_1);
     sem_unlink(SEM_WD_2);
     sem_unlink(SEM_WD_3);
-
-    // unmap shared memory
+    // Unmap shared memory
     munmap(ptr_wd, SIZE_SHM);
-
-    // unlink shared memories
+    // Unlink shared memories
     shm_unlink(SHM_WD);
-
     printf("Clean up has been performed succesfully\n");
 }
 
@@ -326,3 +372,97 @@ void get_args(int argc, char *argv[])
     &server_obstacles[1], &obstacles_server[0], &server_targets[1],
     &targets_server[0]);
 }
+
+char* read_then_echo(int sock){
+    int n, n2;
+    static char buffer[MSG_LEN];
+    bzero(buffer, MSG_LEN);
+
+    // Read from the socket
+    n = read(sock,buffer, MSG_LEN - 1);
+    if (n < 0) error("ERROR reading from socket");
+    printf("Message obtained: %s\n", buffer);
+    
+    // Echo data read into socket
+    n2 = write(sock, buffer, n);
+    return buffer;
+}
+
+char* read_then_echo_unblocked(int sock) {
+    static char buffer[MSG_LEN];
+    fd_set read_fds;
+    struct timeval timeout;
+    int n, n2, ready;
+
+    // Clear the buffer
+    bzero(buffer, MSG_LEN);
+
+    // Initialize the set of file descriptors to monitor for reading
+    FD_ZERO(&read_fds);
+    FD_SET(sock, &read_fds);
+
+    // Set the timeout for select (0 seconds, 0 microseconds)
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Use select to check if the socket is ready for reading
+    ready = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+    if (ready < 0) {perror("ERROR in select");exit(EXIT_FAILURE);} 
+    else if (ready == 0) {return NULL;}  // No data available
+
+    // Data is available for reading, so read from the socket
+    n = read(sock, buffer, MSG_LEN - 1);
+    if (n < 0) {perror("ERROR reading from socket"); exit(EXIT_FAILURE);} 
+    else if (n == 0) {return NULL;}  // Connection closed
+
+    // Print the received message
+    printf("Message obtained: %s\n", buffer);
+
+    // Echo the message back to the client
+    n2 = write(sock, buffer, n);
+    if (n < 0) {perror("ERROR writing to socket"); exit(EXIT_FAILURE);}
+
+    return buffer;
+}
+
+void write_then_wait_echo(int sock, const char *msg){
+    static char buffer[MSG_LEN];
+    fd_set read_fds;
+    struct timeval timeout;
+    int n, n2, ready;
+
+    n2 = write(sock, msg, n);
+    if (n < 0) {perror("ERROR writing to socket"); exit(EXIT_FAILURE);}
+    printf("Data sent to server: %s\n", msg);
+
+    // Clear the buffer
+    bzero(buffer, MSG_LEN);
+
+    // Initialize the set of file descriptors to monitor for reading
+    FD_ZERO(&read_fds);
+    FD_SET(sock, &read_fds);
+
+    // Set the timeout for select (0 seconds, 0 microseconds)
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 300000;
+
+    // Use select to check if the socket is ready for reading
+    ready = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+    if (ready < 0) {perror("ERROR in select");exit(EXIT_FAILURE);} 
+    else if (ready == 0) {
+        printf("Timeout from server. Connection lost!");
+        return;
+    }  // No data available
+
+    // Data is available for reading, so read from the socket
+    n = read(sock, buffer, MSG_LEN - 1);
+    if (n < 0) {perror("ERROR reading from socket"); exit(EXIT_FAILURE);} 
+    else if (n == 0) {
+        printf("Connection closed!");
+        return;
+        }  // Connection closed
+
+    // Print the received message
+    printf("Response from server: %s\n", buffer);
+}
+
