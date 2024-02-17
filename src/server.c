@@ -153,15 +153,21 @@ int main(int argc, char *argv[])
         
         char km_msg[MSG_LEN];
         if (read_pipe_unblocked(km_server[0], km_msg) == 1){
-                // Read acknowledgement
-                printf("[PIPE] Received from key_manager.c: %s\n", km_msg);
-                fflush(stdout);
-                // Response
-                char response_km_msg[MSG_LEN*2];
-                sprintf(response_km_msg, "K:%s", km_msg);
-                write_to_pipe(server_drone[1], response_km_msg);
-                printf("[PIPE] Sent to drone.c: %s\n", response_km_msg);
-                fflush(stdout);
+            // Read acknowledgement
+            printf("[PIPE] Received from key_manager.c: %s\n", km_msg);
+            fflush(stdout);
+            // STOP key pressed (P)
+            if (km_msg[0] == 'S'){
+                write_then_wait_echo(targets_sockfd, km_msg, sizeof(km_msg));
+                write_then_wait_echo(obstacles_sockfd, km_msg, sizeof(km_msg));
+                exit(0);
+            }
+            // Response
+            char response_km_msg[MSG_LEN*2];
+            sprintf(response_km_msg, "K:%s", km_msg);
+            write_to_pipe(server_drone[1], response_km_msg);
+            printf("[PIPE] Sent to drone.c: %s\n", response_km_msg);
+            fflush(stdout);
         }
         
         //////////////////////////////////////////////////////
@@ -190,6 +196,9 @@ int main(int argc, char *argv[])
                 strcpy(substring2, interface_msg +3);
                 write_then_wait_echo(obstacles_sockfd, substring2, sizeof(substring2));
                 printf("SENT %s to obstacles.c and targets.c\n", substring2);
+            }
+            if (interface_msg[0] == 'G'){
+                write_then_wait_echo(targets_sockfd, interface_msg, sizeof(interface_msg));
             }
         }    
         

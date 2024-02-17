@@ -11,8 +11,8 @@
 #include <signal.h>
 
 // Serverless pipes (fd)
-int key_press_fd[2];
-int lowest_target_fd[2];
+int interface_km[2];
+int interface_drone[2];
 
 // New pipes working with server (fd)
 int km_server[2];
@@ -68,12 +68,12 @@ int main(int argc, char *argv[])
 
 
     // Serverless pipe creation
-    if (pipe(key_press_fd) == -1)
+    if (pipe(interface_km) == -1)
     {
         perror("pipe");
         exit(EXIT_FAILURE);
     }
-    if (pipe(lowest_target_fd) == -1)
+    if (pipe(interface_drone) == -1)
     {
         perror("pipe");
         exit(EXIT_FAILURE);
@@ -136,16 +136,16 @@ int main(int argc, char *argv[])
 
     // Passing file descriptors for pipes used on key_manager.c
     char key_manager_fds[80];
-    sprintf(key_manager_fds, "%d %d", key_press_fd[0], km_server[1]);
+    sprintf(key_manager_fds, "%d %d", interface_km[0], km_server[1]);
 
     // Passing file descriptors for pipes used on interface.c
     char interface_fds[80];
-    sprintf(interface_fds, "%d %d %d %d", key_press_fd[1], server_interface[0],
-            interface_server[1], lowest_target_fd[1]);
+    sprintf(interface_fds, "%d %d %d %d", interface_km[1], server_interface[0],
+            interface_server[1], interface_drone[1]);
 
     // Passing file descriptors for pipes used on drone.c
     char drone_fds[80];
-    sprintf(drone_fds, "%d %d %d", server_drone[0], drone_server[1], lowest_target_fd[0]);
+    sprintf(drone_fds, "%d %d %d", server_drone[0], drone_server[1], interface_drone[0]);
 
     // Passing file descriptors for pipes used on obstacles.c
     char obstacles_fds[80];
@@ -246,10 +246,10 @@ void close_all_pipes()
 {
     // Close all of the pipes
     // Serverless pipes (fd)
-    close(key_press_fd[0]);
-    close(lowest_target_fd[0]);
-    close(key_press_fd[1]);
-    close(lowest_target_fd[1]);
+    close(interface_km[0]);
+    close(interface_drone[0]);
+    close(interface_km[1]);
+    close(interface_drone[1]);
 
     // New pipes working with server (fd)
     close(km_server[0]);

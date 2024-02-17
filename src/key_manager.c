@@ -149,9 +149,11 @@ char* determineAction(int pressedKey)
     }
     if ( key == 'S')
     {
-        x = 10;    // Special value interpreted by drone.c process
-        y = 0;
-        return "10,0";
+        return "10,0";  // Special value interpreted by drone.c process
+    }
+    if ( key == 'P')
+    {
+        return "STOP";  // Special value interpreted by server.c process
     }
     else
     {

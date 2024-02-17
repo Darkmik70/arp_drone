@@ -4,7 +4,7 @@
 // User-defined parameters
 #define SCREEN_WIDTH 168
 #define SCREEN_HEIGHT 44
-#define MAX_TARGETS 8
+#define MAX_TARGETS 1
 
 // Structure to represent a target
 typedef struct {
