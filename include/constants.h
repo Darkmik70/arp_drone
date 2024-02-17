@@ -1,12 +1,14 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+// PORT NUMBER FOR SOCKETS
+#define PORT_NUMBER 3000
+
 // Shared mem for Watchdog's pid
 #define SHM_WD "/wd_pid_1"
 #define SEM_WD_1 "/sem_wd_1"
 #define SEM_WD_2 "/sem_wd_2"
 #define SEM_WD_3 "/sem_wd_3"
-
 
 // Shared memory key for key presses
 #define SHM_KEY "/shared_keyboard"
