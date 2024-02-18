@@ -1,11 +1,9 @@
 #include "main.h"
 #include "common.h"
 
-// Serverless pipes (fd)
-int interface_km[2];
-int interface_drone[2];
-
-// New pipes working with server (fd)
+// PIPES: File descriptor arrays
+int interface_km[2];        // Serverless pipes
+int interface_drone[2];     // Serverless pipes
 int km_server[2];
 int server_drone[2];
 int interface_server[2];
@@ -40,10 +38,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
         kill(logger_pid, SIGKILL);
         kill(targets_pid, SIGKILL);
         kill(obstacles_pid, SIGKILL);
-
         printf("Closing all pipes.. \n");
         close_all_pipes();
-
         exit(1);
     }
 }
@@ -57,67 +53,22 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
 
-
     // Serverless pipe creation
-    if (pipe(interface_km) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(interface_drone) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
+    if (pipe(interface_km) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: To server
-    if (pipe(km_server) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(drone_server) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(interface_server) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(obstacles_server) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(targets_server) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
+    if (pipe(km_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(drone_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(obstacles_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(targets_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: From server
-    if (pipe(server_drone) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(server_interface) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(server_obstacles) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-    if (pipe(server_targets) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
+    if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_interface) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_obstacles) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_targets) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
 
     // Passing file descriptors for pipes used on server.c
     char server_fds[80];
@@ -147,13 +98,19 @@ int main(int argc, char *argv[])
     sprintf(targets_fds, "%d %d", server_targets[0], targets_server[1]);
 
     int delay = 100000; // Time delay between next spawns
-    int p_num = 0;      // number of processes
+    int p_num = 0;      // Number of processes
 
     /* Server */
     char *server_args[] = {"konsole", "-e", "./build/server", server_fds, NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
-    usleep(delay * 10); // little bit more time for server
+    usleep(delay * 10); // Extended time: For server priority
+
+    /* Window - Interface */
+    char *window_args[] = {"konsole", "-e", "./build/interface", interface_fds, NULL};
+    window_pid = create_child(window_args[0], window_args);
+    p_num++;
+    usleep(delay);
 
     /* Targets */
     char *targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
@@ -185,12 +142,6 @@ int main(int argc, char *argv[])
     p_num++;
     printf("Watchdog Created\n");
 
-    /* Window - Interface */
-    char *window_args[] = {"konsole", "-e", "./build/interface", interface_fds, NULL};
-    window_pid = create_child(window_args[0], window_args);
-    p_num++;
-    usleep(delay);
-
     // /* Logger */
     // char* logger_args[] = {"konsole", "-e", "./build/logger", NULL};
     // logger_pid = create_child(logger_args[0], logger_args);
@@ -209,9 +160,7 @@ int main(int argc, char *argv[])
         }
     }
     printf("All child processes closed, closing main process...\n");
-
     close_all_pipes();
-
     return 0;
 }
 
@@ -223,42 +172,38 @@ int create_child(const char *program, char **arg_list)
         printf("Child process %s with PID: %d  was created\n", program, child_pid);
         return child_pid;
     }
-    else if (child_pid == 0)
-    {
-        execvp(program, arg_list);
-    }
-    else
-    {
-        perror("Fork failed");
-    }
+    else if (child_pid == 0) {execvp(program, arg_list);}
+    else {perror("Fork failed");}
 }
 
 void close_all_pipes()
 {
-    // Close all of the pipes
-    // Serverless pipes (fd)
+    // Interface pipes
     close(interface_km[0]);
     close(interface_drone[0]);
     close(interface_km[1]);
     close(interface_drone[1]);
-
-    // New pipes working with server (fd)
-    close(km_server[0]);
-    close(server_drone[0]);
     close(interface_server[0]);
-    close(drone_server[0]);
-    close(server_interface[0]);
-    close(server_obstacles[0]);
-    close(obstacles_server[0]);
-    close(server_targets[0]);
-    close(targets_server[0]);
-    close(km_server[1]);
-    close(server_drone[1]);
     close(interface_server[1]);
+    // Keyboard Manager pipes
+    close(km_server[0]);
+    close(km_server[1]);
+    // Drone pipes
+    close(drone_server[0]);
     close(drone_server[1]);
+    // Server pipes
+    close(server_interface[0]);
     close(server_interface[1]);
+    close(server_drone[0]);
+    close(server_drone[1]);
+    close(server_obstacles[0]);
     close(server_obstacles[1]);
-    close(obstacles_server[1]);
+    close(server_targets[0]);
     close(server_targets[1]);
+    // Targets pipes
+    close(targets_server[0]);
     close(targets_server[1]);
+    // Obstacles pipes
+    close(obstacles_server[0]);
+    close(obstacles_server[1]);
 }

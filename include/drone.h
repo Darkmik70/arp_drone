@@ -13,6 +13,8 @@
 #define MIN_DISTANCE 5.0  // Distance where the drone begins feeling force of an object
 #define MAX_DISTANCE 2.0  // Distance where the drone caps out the force of an object
 #define TOLERANCE 0.0044  // Below this value the process drone.c will not print the velocity anymore
+
+
 /**
  * Obtain the file descriptors of the pipes given by the main process.
 */

@@ -1,6 +1,6 @@
 #include "common.h"
 
-// Publisht the PID integer value to the watchdog
+// Publish the PID integer value to the watchdog.
 void publish_pid_to_wd(int process_symbol, pid_t pid)
 {   
     int shm_wd_fd = shm_open(SHM_WD, O_RDWR, 0666);
@@ -26,10 +26,10 @@ void publish_pid_to_wd(int process_symbol, pid_t pid)
     munmap(ptr_wd,SIZE_SHM);
 }
 
-// Pipe functions
+// Writes message using the file descriptor provided.
 void write_to_pipe(int pipe_fd, char message[])
 {
-    ssize_t bytes_written = write(pipe_fd, message, MSG_LEN );
+    ssize_t bytes_written = write(pipe_fd, message, MSG_LEN);
     if (bytes_written == -1)
     {
         perror("Write went wrong");
@@ -37,7 +37,7 @@ void write_to_pipe(int pipe_fd, char message[])
     }
 }
 
-// TODO: add to util.h and add comments
+// Writes the provided message into the logger.
 void write_message_to_logger(int who, int type, char *msg)
 {
     int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
@@ -69,7 +69,7 @@ void write_message_to_logger(int who, int type, char *msg)
     sem_close(sem_logs_3);
 }
 
-
+// Reads a message from the socket, then does an echo.
 void read_then_echo(int sockfd, char socket_msg[]){
     int bytes_read, bytes_written;
     bzero(socket_msg, MSG_LEN);
@@ -87,7 +87,7 @@ void read_then_echo(int sockfd, char socket_msg[]){
     printf("[SOCKET] Echo sent: %s\n", socket_msg);
 }
 
-
+// Reads a message from the socket, with select() system call, then does an echo.
 int read_then_echo_unblocked(int sockfd, char socket_msg[]) {
     int ready;
     int bytes_read, bytes_written;
@@ -123,7 +123,7 @@ int read_then_echo_unblocked(int sockfd, char socket_msg[]) {
     else{printf("[SOCKET] Echo sent: %s\n", socket_msg); return 1;}
 }
 
-
+// Writes a message into the socket, then loops/waits until a valid echo is read.
 void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size){
     int ready;
     int bytes_read, bytes_written;
@@ -145,7 +145,7 @@ void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size){
     printf("[SOCKET] Echo received: %s\n", socket_msg);
 }
 
-
+// Reads a message from the pipe with select() system call.
 int read_pipe_unblocked(int pipefd, char msg[]){
     struct timeval timeout;
     timeout.tv_sec = 0;

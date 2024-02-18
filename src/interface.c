@@ -58,8 +58,8 @@ int main(int argc, char *argv[])
     /* VARIABLE INITIALIZATION */
     /////////////////////////////////////////////////////
 
-    // To compare current and previous data
     int iteration = 0;
+    // To compare current and previous data
     int obtained_targets = 0;
     int obtained_obstacles = 0;
     int prev_screen_size_y = 0;
@@ -70,10 +70,6 @@ int main(int argc, char *argv[])
     char score_msg[MSG_LEN];
     int score = 0;
     int counter = 0;
-    // Timeout
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
     // Targets and obstacles
     Targets targets[80];
     Targets original_targets[80];
@@ -126,68 +122,48 @@ int main(int argc, char *argv[])
         /* SECTION 2: READ THE DATA FROM SERVER*/
         /////////////////////////////////////////////////////
 
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(server_interface[0], &read_fds);
-
         char server_msg[MSG_LEN];
 
-        int ready;
-        do
-        {
-            ready = select(server_interface[0] + 1, &read_fds, NULL, NULL, NULL);
-            if (ready == -1)
-            {
-                perror("Error in select");
-            }
-        } while (ready == -1 && errno == EINTR);
-
         ssize_t bytes_read_drone = read(server_interface[0], server_msg, MSG_LEN);
-        if (bytes_read_drone > 0)
-        {
-            if (server_msg[0] == 'D')
-            {
+        if (bytes_read_drone > 0){
+            if (server_msg[0] == 'D'){
                 sscanf(server_msg, "D:%d,%d", &droneX, &droneY);
             }
-            else if (server_msg[0] == 'O')
-            {
-                parseObstaclesMsg(server_msg, obstacles, &numObstacles);
+            else if (server_msg[0] == 'O'){
+                parse_obstacles_string(server_msg, obstacles, &numObstacles);
                 obtained_obstacles = 1;
             }
-            else if (server_msg[0] == 'T')
-            {
-                parseTargetMsg(server_msg, targets, &numTargets, original_targets);
+            else if (server_msg[0] == 'T'){
+                parse_target_string(server_msg, targets, &numTargets, original_targets);
                 obtained_targets = 1;
             }
         }
 
-        if (obtained_targets == 0 && obtained_obstacles == 0)
-        {
-            continue;
-        }
+        // Re-read the pipe if neither targets nor obstacles have been obtained
+        if (obtained_targets == 0 && obtained_obstacles == 0){continue;}
 
-        printf("TARGETS OBTAINED. NOW TO SECTION 3!");
+
         //////////////////////////////////////////////////////
         /* SECTION 3: DATA ANALYSIS & GAME SCORE CALCULATION*/
         /////////////////////////////////////////////////////
 
-        /* UPDATE THE TARGETS ONCE THE DRONE REACHES THE CURRENT LOWEST NUMBER */
-        // Find the index of the target with the lowest ID
-        int lowestIndex = findLowestID(targets, numTargets);
-
-        // When there are no more targets, the game is finished.
-        if (numTargets == 0)
-        {
+        // When there are no more targets, the score resets.
+        if (numTargets == 0){
             score = 0;
             obtained_targets = 0;
             write_to_pipe(interface_server[1], "GE");
             continue;
         }
+
+        // Find the index of the target with the lowest ID
+        int lowestIndex = find_lowest_target_id(targets, numTargets);
+
         // Obtain the coordinates of that target
-        char lowestTarget[20];
-        sprintf(lowestTarget, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
+        char drone_msg[MSG_LEN];
+        sprintf(drone_msg, "%d,%d", targets[lowestIndex].x, targets[lowestIndex].y);
+
         // Send to drone w/ serverless pipe lowest_target
-        write_to_pipe(interface_drone[1], lowestTarget);
+        write_to_pipe(interface_drone[1], drone_msg);
 
         // Check if the coordinates of the lowest ID target match the drone coordinates
         if (targets[lowestIndex].x == droneX && targets[lowestIndex].y == droneY)
@@ -210,16 +186,20 @@ int main(int argc, char *argv[])
                 score += 10;
             }
             counter = 0;
+
             // Remove the target with the lowest ID
-            removeTarget(targets, &numTargets, lowestIndex);
+            remove_target(targets, &numTargets, lowestIndex);
         }
 
-        // Check if the drone has crashed into an obstacle
-        if (isDroneAtObstacle(obstacles, numObstacles, droneX, droneY))
+        // Check if the drone has "crashed" into an obstacle
+        if (is_drone_at_obstacle(obstacles, numObstacles, droneX, droneY))
         {
-            // Update score
-            score -= 5;
+            score -= 5;  // Remove 5 points if an obstacle is touched
         }
+
+        // Counter/Timer linked to score calculations
+        counter++;
+        usleep(10000);
 
         //////////////////////////////////////////////////////
         /* SECTION 4: DRAW THE WINDOW & OBTAIN INPUT*/
@@ -230,31 +210,28 @@ int main(int argc, char *argv[])
         // Draws the window with the updated information of the terminal size, drone, targets, obstacles and score.
         draw_window(droneX, droneY, targets, numTargets, obstacles, numObstacles, score_msg);
 
-        /* HANDLE THE KEY PRESSED BY THE USER */
+        //////////////////////////////////////////////////////
+        /* SECTION 5: HANDLE THE KEY PRESSED BY USER */
+        /////////////////////////////////////////////////////
+
         int ch;
         if ((ch = getch()) != ERR)
         {
-            // Write char to the pipe
             char msg[MSG_LEN];
             sprintf(msg, "%c", ch);
-            // Send it directly to key_manager.c
             write_to_pipe(interface_km[1], msg);
         }
         flushinp(); // Clear the input buffer
-
-        // Counter/Timer linked to score calculations
-        counter++;
-        usleep(10000);
     }
 
-    /* cleanup */
+    /* Cleanup */
     endwin();
-
     return 0;
 }
 
+
 // Function to find the index of the target with the lowest ID.
-int findLowestID(Targets *targets, int numTargets)
+int find_lowest_target_id(Targets *targets, int numTargets)
 {
     int lowestID = targets[0].id;
     int lowestIndex = 0;
@@ -270,7 +247,7 @@ int findLowestID(Targets *targets, int numTargets)
 }
 
 // Function to remove a target at a given index from the array.
-void removeTarget(Targets *targets, int *numTargets, int indexToRemove)
+void remove_target(Targets *targets, int *numTargets, int indexToRemove)
 {
     // Shift elements to fill the gap
     for (int i = indexToRemove; i < (*numTargets - 1); i++)
@@ -282,7 +259,7 @@ void removeTarget(Targets *targets, int *numTargets, int indexToRemove)
 }
 
 // Function to interpret the string of obstacles
-void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
+void parse_obstacles_string(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
 {
     int totalObstacles;
     sscanf(obstacles_msg, "O[%d]", &totalObstacles);
@@ -307,7 +284,7 @@ void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstac
 }
 
 // Function to interpret the string of targets
-void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets)
+void parse_target_string(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets)
 {
     char *token = strtok(targets_msg + 4, "|");
     *numTargets = 0;
@@ -334,7 +311,7 @@ void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Target
 }
 
 // Function to determine wether the drone is on top of an obstacle
-int isDroneAtObstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY)
+int is_drone_at_obstacle(Obstacles obstacles[], int numObstacles, int droneX, int droneY)
 {
     for (int i = 0; i < numObstacles; i++)
     {
@@ -353,21 +330,18 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-
-        // Close file desciptors
+        // Close file desciptors and exit
         close(interface_km[1]);
         close(interface_drone[1]);
         close(server_interface[0]);
         close(interface_server[1]);
-
         exit(1);
     }
     if (signo == SIGUSR1)
     {
-        // TODO REFRESH SCREEN
-        //  Get watchdog's pid
+        // Get watchdog's pid
         pid_t wd_pid = siginfo->si_pid;
-        // inform on your condition
+        // Inform on your condition
         kill(wd_pid, SIGUSR2);
         // printf("SIGUSR2 SENT SUCCESSFULLY\n");
     }
