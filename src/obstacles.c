@@ -9,7 +9,9 @@ int obstacles_server[2];
 int main(int argc, char *argv[])
 {   
     sleep(1);
+    // Read the file descriptors from the arguments
     get_args(argc, argv);
+    // Seed random number generator with current time
     srand(time(NULL));
 
     // Timeout
@@ -102,7 +104,7 @@ int main(int argc, char *argv[])
 
         // Print obstacles every (WAIT_TIME)
         obstacles_msg[0] = '\0'; // Clear the string
-        printObstacles(obstacles, numObstacles, obstacles_msg); 
+        generate_obstacles_string(obstacles, numObstacles, obstacles_msg); 
         sleep(WAIT_TIME);
 
         // Check if any obstacle has exceeded its spawn time
@@ -124,7 +126,7 @@ int main(int argc, char *argv[])
 }
 
 
-void printObstacles(Obstacle obstacles[], int numObstacles, char obstacles_msg[])
+void generate_obstacles_string(Obstacle obstacles[], int numObstacles, char obstacles_msg[])
 {
     // Append the letter O and the total number of obstacles to obstacles_msg
     sprintf(obstacles_msg, "O[%d]", numObstacles);

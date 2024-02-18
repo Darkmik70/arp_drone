@@ -2,7 +2,7 @@
 #define TARGETS_H
 
 // User-defined parameters
-#define MAX_TARGETS 1
+#define MAX_TARGETS 5
 
 // Structure to represent a single target
 typedef struct {
@@ -10,7 +10,10 @@ typedef struct {
     int y;
 } Target;  // Different from "targets" in constants.h
 
+/**
+ * Obtain the file descriptors of the pipes given by the main process.
+*/
 void get_args(int argc, char *argv[]);
-void generateRandomCoordinates(int sectorWidth, int sectorHeight, int *x, int *y);
+
 
 #endif // TARGETS_H

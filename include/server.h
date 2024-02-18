@@ -3,27 +3,32 @@
 
 #include <signal.h>
 
-#define SLEEP_TIME 500000  
-
-void get_args(int argc, char *argv[]);
-void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 /**
  * Creates shared memory segments
- * 
- *  This is divided into two parts.
- *  The first part creates the shared memory segment with predefined functions and size. 
- *  The second part maps the memory and returns the ptr.
+ *  1. Creation of the shared memory segment with predefined functions and size. 
+ *  2. Memory mapping and return of ptr.
  * 
  * @param name Name of the shared memory segment
- *      
+ *   
  * @returns pointer to the memory map of type void
 */
 void *create_shm(char *name);
 
 /**
+ * Obtain the file descriptors of the pipes given by the main process.
+*/
+void get_args(int argc, char *argv[]);
+
+/**
+ * Handles the signals monitored by the watchdog process.
+*/
+void signal_handler(int signo, siginfo_t *siginfo, void *context);
+
+/**
  * Closes and unlinks semaphores, unmaps and unlinks shared memory segments
 */
 void clean_up();
+
 
 #endif // SERVER_H

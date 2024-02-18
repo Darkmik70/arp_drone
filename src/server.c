@@ -14,69 +14,52 @@ int targets_server[2];
 
 // Shared memory and semaphores
 void *ptr_wd;                           // Shared memory for WD
-void *ptr_logs;                         // Shared memory ptr for logs
+void *ptr_logs;                         // Shared memory for logger
+sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;          // Semaphores for WD
+sem_t *sem_logs_1, *sem_logs_2, *sem_logs_3;    // Semaphores for logger
 
-sem_t *sem_logs_1;
-sem_t *sem_logs_2;
-sem_t *sem_logs_3;
-sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
 
 int main(int argc, char *argv[]) 
 {   
+    // Read the file descriptors from the arguments
     get_args(argc, argv);
-    /* Sigaction */
+
+    // Signals
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);    
     sigaction (SIGUSR1, &sa, NULL);
 
-    // Shared memory and semaphores for WATCHDOG
+    //////////////////////////////////////////////////////
+    /* SHARED MEMORY and SEMAPHORES INITIALIZATION */
+    /////////////////////////////////////////////////////
+
+    /* Semaphores are unlocked by WD in order to get pids */
+
+    // WATCHDOG
     ptr_wd = create_shm(SHM_WD);
-    sem_wd_1 = sem_open(SEM_WD_1, O_CREAT, S_IRUSR | S_IWUSR, 0); // 0 for locked, this semaphore is unlocked by WD in order to get pids
-    if (sem_wd_1 == SEM_FAILED) {
-        perror("sem_wd_1 failed");
-        exit(1);
-    }
-    sem_wd_2 = sem_open(SEM_WD_2, O_CREAT, S_IRUSR | S_IWUSR, 0); // 0 for locked, this semaphore is unlocked by WD in order to get pids
-    if (sem_wd_2 == SEM_FAILED) {
-        perror("sem_wd_2 failed");
-        exit(1);
-    }
-    sem_wd_3 = sem_open(SEM_WD_3, O_CREAT, S_IRUSR | S_IWUSR, 0); // 0 for locked, this semaphore is unlocked by WD in order to get pids
-    if (sem_wd_3 == SEM_FAILED) {
-        perror("sem_wd_3 failed");
-        exit(1);
-    }
+    sem_wd_1 = sem_open(SEM_WD_1, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (sem_wd_1 == SEM_FAILED) {perror("sem_wd_1 failed"); exit(1);}
 
-    // Shared memory for LOGS
+    sem_wd_2 = sem_open(SEM_WD_2, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (sem_wd_2 == SEM_FAILED) {perror("sem_wd_2 failed"); exit(1);}
+    
+    sem_wd_3 = sem_open(SEM_WD_3, O_CREAT, S_IRUSR | S_IWUSR, 0);
+    if (sem_wd_3 == SEM_FAILED) {perror("sem_wd_3 failed"); exit(1);}
+
+    // LOGGER
     ptr_logs = create_shm(SHM_LOGS);
-    sem_logs_1 = sem_open(SEM_LOGS_1, O_CREAT, S_IRUSR | S_IWUSR, 0); // this dude is locked
-    if (sem_logs_1 == SEM_FAILED) {
-        perror("sem_logs_1 failed");
-        exit(1);
-    }
+    sem_logs_1 = sem_open(SEM_LOGS_1, O_CREAT, S_IRUSR | S_IWUSR, 0); 
+    if (sem_logs_1 == SEM_FAILED) {perror("sem_logs_1 failed"); exit(1);}
+
     sem_logs_2 = sem_open(SEM_LOGS_2, O_CREAT, S_IRUSR | S_IWUSR, 0); 
-    if (sem_logs_2 == SEM_FAILED) {
-        perror("sem_logs_2 failed");
-        exit(1);
-    }
+    if (sem_logs_2 == SEM_FAILED) {perror("sem_logs_2 failed"); exit(1);}
+
     sem_logs_3 = sem_open(SEM_LOGS_3, O_CREAT, S_IRUSR | S_IWUSR, 0); 
-    if (sem_logs_3 == SEM_FAILED) {
-        perror("sem_logs_3 failed");
-        exit(1);
-    }
+    if (sem_logs_3 == SEM_FAILED) {perror("sem_logs_3 failed"); exit(1);}
 
-    // When all shm are created publish your pid to WD
     publish_pid_to_wd(SERVER_SYM, getpid());
-
-    // Timeout
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    // To compare current and previous data
-    char prev_drone_msg[MSG_LEN] = "";
 
     //////////////////////////////////////////////////////
     /* SOCKET CREATION */
@@ -88,16 +71,19 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr, cli_addr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-    perror("ERROR opening socket");
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    if (sockfd < 0) {perror("ERROR opening socket");}
+
     portno = PORT_NUMBER;  // Hard-coded port number
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
+    
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
-            perror("ERROR on binding");
+        perror("ERROR on binding");
     }
+
     listen(sockfd,5);
     clilen = sizeof(cli_addr);
 
@@ -116,6 +102,10 @@ int main(int argc, char *argv[])
         else if(socket_msg[0] == 'T'){targets_sockfd = newsockfd;}
         else {close(newsockfd);}
     }
+
+    // Variable: To compare current and previous data
+    char prev_drone_msg[MSG_LEN] = "";
+
 
     while (1)
     {
@@ -220,10 +210,9 @@ int main(int argc, char *argv[])
             printf("[PIPE] Sent to interface.c: %s\n", targets_msg);
             fflush(stdout);
         }
-
     }
 
-    // Close and unlink the semaphores
+    // Close and unlink
     clean_up();
     return 0;
 }

@@ -6,23 +6,21 @@ int server_targets[0];
 int targets_server[1];
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
     sleep(1);
+    // Read the file descriptors from the arguments
     get_args(argc, argv);
+    // Seed random number generator with current time
     srand(time(NULL));
 
     // Variables
-    int screen_size_x; int screen_size_y;
+    int screen_size_x; 
+    int screen_size_y;
     float scale_x;
     float scale_y;
-    int counter = 0;
     int obtained_dimensions = 0;
     int targets_created = 0;
-    
-    // Timeout
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
 
     //////////////////////////////////////////////////////
     /* SOCKET INITIALIZATION */
@@ -50,6 +48,7 @@ int main(int argc, char *argv[]) {
     if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
         perror("ERROR connecting");
 
+
     //////////////////////////////////////////////////////
     /* IDENTIFICATION WITH SERVER */
     /////////////////////////////////////////////////////
@@ -57,11 +56,11 @@ int main(int argc, char *argv[]) {
     char init_msg[] = "TI";
     write_then_wait_echo(sockfd, init_msg, sizeof(init_msg));
 
+
     //////////////////////////////////////////////////////
     /* OBTAIN DIMENSIONS */
     /////////////////////////////////////////////////////
 
-    // According to protocol, this will be the screen dimensions.
     char dimension_msg[MSG_LEN];
     read_then_echo(sockfd, dimension_msg);
 
@@ -69,6 +68,7 @@ int main(int argc, char *argv[]) {
     sscanf(dimension_msg, "%f,%f", &temp_scx, &temp_scy);
     screen_size_x = (int)temp_scx;
     screen_size_y = (int)temp_scy;
+
 
     while(1)
     {
@@ -145,9 +145,10 @@ int main(int argc, char *argv[]) {
         /* SECTION 2: READ THE DATA FROM SERVER */
         /////////////////////////////////////////////////////
 
+        /* Because the targets process does not need to run continously, 
+        we may use a blocking-read for the socket */
         char socket_msg[MSG_LEN];
-        // We use a blocking read because targets do not not continous operation
-        read_then_echo_unblocked(sockfd, socket_msg);
+        read_then_echo(sockfd, socket_msg);
 
         if (strcmp(socket_msg, "STOP") == 0){
             printf("STOP RECEIVED FROM SERVER!\n");

@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
         }
 
         // Re-read the pipe if neither targets nor obstacles have been obtained
-        if (obtained_targets == 0 && obtained_obstacles == 0){continue;}
+        if (obtained_targets == 0 || obtained_obstacles == 0){continue;}
 
 
         //////////////////////////////////////////////////////
