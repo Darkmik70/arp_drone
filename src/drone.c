@@ -1,44 +1,23 @@
 #include "drone.h"
-#include "constants.h"
-#include "util.h"
+#include "common.h"
 
-#include <stdio.h>       
-#include <stdlib.h>
-#include <stdbool.h>
-#include <unistd.h>
-
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/mman.h>
-#include <sys/select.h>
-#include <sys/stat.h>
-
-#include <fcntl.h>
-#include <math.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
-
-
-// Serverless pipes
-int interface_drone[2];
-
-// Pipes working with the server
+// PIPES: File descriptor arrays
+int interface_drone[2];  // Serverless pipe
 int server_drone[2];
 int drone_server[2];
 
 
 int main(int argc, char *argv[]) 
 {
+    // Read the file descriptors from the arguments
     get_args(argc, argv);
 
+    // Signals
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
     sa.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sa, NULL);
     sigaction (SIGUSR1, &sa, NULL);    
-
     publish_pid_to_wd(DRONE_SYM, getpid());
 
     // Variable declaration
@@ -48,15 +27,14 @@ int main(int argc, char *argv[])
     double pos_x; double pos_y;
     int target_x; int target_y;
     int valid_target;
+    Obstacles obstacles[80];
+    int numObstacles;
 
     // Initial values
     double Vx = 0.0; double Vy = 0.0;
     double forceX = 0.0; double forceY = 0.0;
     int obtained_obstacles = 0;
 
-    // Targets and obstacles
-    Obstacles obstacles[80];
-    int numObstacles;
 
     while (1)
     {
@@ -64,48 +42,33 @@ int main(int argc, char *argv[])
         /* SECTION 1: READ DATA FROM SERVER */
         /////////////////////////////////////////////////////
 
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(server_drone[0], &read_fds);
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 0;
-        
         char server_msg[MSG_LEN];
-
-        int ready = select(server_drone[0] + 1, &read_fds, NULL, NULL, &timeout);
-        if (ready == -1) {perror("Error in select");}
-
-        if (ready > 0 && FD_ISSET(server_drone[0], &read_fds)) {
-            ssize_t bytes_read = read(server_drone[0], server_msg, MSG_LEN);
-            if (bytes_read > 0){
-                // Message origin: Keyboard Manager
-                if (server_msg[0] == 'K'){
-                    sscanf(server_msg, "K:%d,%d", &actionX, &actionY);
-                }
-                // Message origin: Interface
-                else if (server_msg[0] == 'I' && server_msg[1] == '1'){
-                    sscanf(server_msg, "I1:%d,%d,%d,%d", &x, &y, &screen_size_x, &screen_size_y);
-                    printf("Obtained initial parameters from server: %s\n", server_msg);
-                    pos_x = (double)x;
-                    pos_y = (double)y;
-                    fflush(stdout);
-                }
-                // Message origin: Interface
-                else if (server_msg[0] == 'I' && server_msg[1] == '2'){
-                    sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
-                    // printf("Changed screen dimensions to: %s\n", server_msg);
-                    fflush(stdout);
-                }
-                // Message origin: Obstacles
-                else if (server_msg[0] == 'O'){
-                    // printf("Obtained obstacles message: %s\n", server_msg);
-                    parseObstaclesMsg(server_msg, obstacles, &numObstacles);
-                    obtained_obstacles = 1;
-                }
+        if (read_pipe_unblocked(server_drone[0], server_msg) == 1){
+            // Message origin: Keyboard Manager
+            if (server_msg[0] == 'K'){
+                sscanf(server_msg, "K:%d,%d", &actionX, &actionY);
             }
-        } else { actionX = 0; actionY = 0;}
+            // Message origin: Interface
+            else if (server_msg[0] == 'I' && server_msg[1] == '1'){
+                sscanf(server_msg, "I1:%d,%d,%d,%d", &x, &y, &screen_size_x, &screen_size_y);
+                printf("Obtained initial parameters from server: %s\n", server_msg);
+                pos_x = (double)x;
+                pos_y = (double)y;
+                fflush(stdout);
+            }
+            // Message origin: Interface
+            else if (server_msg[0] == 'I' && server_msg[1] == '2'){
+                sscanf(server_msg, "I2:%d,%d", &screen_size_x, &screen_size_y);
+            }
+            // Message origin: Obstacles
+            else if (server_msg[0] == 'O'){
+                parse_obstacles_string(server_msg, obstacles, &numObstacles);
+                obtained_obstacles = 1;
+            }
+        }
+        else { actionX = 0; actionY = 0;}
 
+        // If obstacles has not been obtained, continue loop.
         if (obtained_obstacles == 0){
             continue;
         }
@@ -114,25 +77,10 @@ int main(int argc, char *argv[])
         /* SECTION 2: READ DATA FROM INTERFACE.C (SERVERLESS PIPE) */
         /////////////////////////////////////////////////////
 
-        fd_set read_interface;
-        FD_ZERO(&read_interface);
-        FD_SET(interface_drone[0], &read_interface);
-        
-        char msg[MSG_LEN];
-
-        int ready_targets = select(interface_drone[0] + 1, &read_interface, NULL, NULL, &timeout);
-        if (ready_targets == -1) {perror("Error in select");}
-
-        if (ready_targets > 0 && FD_ISSET(interface_drone[0], &read_interface)) {
-            ssize_t bytes_read_interface = read(interface_drone[0], msg, MSG_LEN);
-            if (bytes_read_interface > 0) {
-                // Read acknowledgement
-                // printf("RECEIVED target %s from interface.c\n", msg);
-                sscanf(msg, "%d,%d", &target_x, &target_y);
-                fflush(stdout);
-                valid_target = 1;
-            }
-            else if (bytes_read_interface == -1) {perror("Read pipe interface_drone");}
+        char interface_msg[MSG_LEN];
+        if (read_pipe_unblocked(interface_drone[0], interface_msg) == 1){
+            sscanf(interface_msg, "%d,%d", &target_x, &target_y);
+            valid_target = 1;
         }
 
         //////////////////////////////////////////////////////
@@ -157,13 +105,11 @@ int main(int argc, char *argv[])
 
         // TARGETS
         if(valid_target == 1){
-            calculateExtForce(pos_x, pos_y, target_x, target_y, 0.0, 0.0, &ext_forceX, &ext_forceY);
+            calculate_external_forces(pos_x, pos_y, target_x, target_y, 0.0, 0.0, &ext_forceX, &ext_forceY);
         }
         // OBSTACLES
         for (int i = 0; i < numObstacles; i++) {
-            printf("ExtForce, x: %d\n", obstacles[i].x);
-            printf("ExtForce, y: %d\n", obstacles[i].y);
-            calculateExtForce(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
+            calculate_external_forces(pos_x, pos_y, 0.0, 0.0, obstacles[i].x, obstacles[i].y, &ext_forceX, &ext_forceY);
         }
 
         if(ext_forceX > EXT_FORCE_MAX){ext_forceX = EXT_FORCE_MAX;}
@@ -177,11 +123,11 @@ int main(int argc, char *argv[])
 
         double max_x = (double)screen_size_x;
         double max_y = (double)screen_size_y;
-        eulerMethod(&pos_x, &Vx, forceX, ext_forceX, &max_x);
-        eulerMethod(&pos_y, &Vy, forceY, ext_forceY, &max_y);
+        euler_method(&pos_x, &Vx, forceX, ext_forceX, &max_x);
+        euler_method(&pos_y, &Vy, forceY, ext_forceY, &max_y);
 
         // Only print the data ONLY when there is movement from the drone.
-        if (fabs(Vx) > FLOAT_TOLERANCE || fabs(Vy) > FLOAT_TOLERANCE)
+        if (fabs(Vx) > TOLERANCE || fabs(Vy) > TOLERANCE)
         {
             printf("Drone force (X,Y): %.2f,%.2f\t|\t",forceX,forceY);
             printf("External force (X,Y): %.2f,%.2f\n",ext_forceX,ext_forceY);
@@ -228,7 +174,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 }
 
 
-void calculateExtForce(double droneX, double droneY, double targetX, double targetY,
+void calculate_external_forces(double droneX, double droneY, double targetX, double targetY,
                         double obstacleX, double obstacleY, double *ext_forceX, double *ext_forceY)
 {
     // ***Calculate ATTRACTION force towards the target***
@@ -236,13 +182,13 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
     double angleToTarget = atan2(targetY - droneY, targetX - droneX);
 
     // To avoid division by zero or extremely high forces
-    if (distanceToTarget < minDistance) {
-        distanceToTarget = minDistance; // Keep the force value as it were on the minDistance
+    if (distanceToTarget < MAX_DISTANCE) {
+        distanceToTarget = MAX_DISTANCE;
     }
     // Bellow 5m the attraction force will be calculated.
-    else if (distanceToTarget < startDistance){
-    *ext_forceX += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * cos(angleToTarget);
-    *ext_forceY += Coefficient * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * sin(angleToTarget);
+    else if (distanceToTarget < MIN_DISTANCE){
+    *ext_forceX += COEFFICIENT * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * cos(angleToTarget);
+    *ext_forceY += COEFFICIENT * (1.0 / distanceToTarget - 1.0 / 5.0) * (1.0 / pow(distanceToTarget,2)) * sin(angleToTarget);
     }
     else{
         *ext_forceX += 0;
@@ -254,13 +200,13 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
     double angleToObstacle = atan2(obstacleY - droneY, obstacleX - droneX);
 
     // To avoid division by zero or extremely high forces
-    if (distanceToObstacle < minDistance) {
-            distanceToObstacle = minDistance; // Keep the force value as it were on the minDistance
+    if (distanceToObstacle < MAX_DISTANCE) {
+            distanceToObstacle = MAX_DISTANCE; // Keep the force value as it were on the MAX_DISTANCE
         }
     // Bellow 5m the repulsion force will be calculated
-    else if (distanceToObstacle < startDistance){
-    *ext_forceX -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * cos(angleToObstacle);
-    *ext_forceY -= Coefficient * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * sin(angleToObstacle);
+    else if (distanceToObstacle < MIN_DISTANCE){
+    *ext_forceX -= COEFFICIENT * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * cos(angleToObstacle);
+    *ext_forceY -= COEFFICIENT * (1.0 / distanceToObstacle - 1.0 / 5.0) * (1.0 / pow(distanceToObstacle,2)) * sin(angleToObstacle);
     }
     else{
         *ext_forceX -= 0;
@@ -269,7 +215,20 @@ void calculateExtForce(double droneX, double droneY, double targetX, double targ
 }
 
 
-void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
+void euler_method(double *pos, double *vel, double force, double extForce, double *maxPos)
+{
+    double total_force = force + extForce;
+    double accelerationX = (total_force - DAMPING * (*vel)) / MASS;
+    *vel = *vel + accelerationX * D_T;
+    *pos = *pos + (*vel) * D_T;
+
+    // Walls are the maximum position the drone can reach
+    if (*pos < 0){*pos = 0;}
+    if (*pos > *maxPos){*pos = *maxPos - 1;}
+}
+
+
+void parse_obstacles_string(char *obstacles_msg, Obstacles *obstacles, int *numObstacles)
 {
     int totalObstacles;
     sscanf(obstacles_msg, "O[%d]", &totalObstacles);
@@ -290,19 +249,6 @@ void parseObstaclesMsg(char *obstacles_msg, Obstacles *obstacles, int *numObstac
         token = strtok(NULL, "|");
         (*numObstacles)++;
     }
-}
-
-
-void eulerMethod(double *pos, double *vel, double force, double extForce, double *maxPos)
-{
-    double total_force = force + extForce;
-    double accelerationX = (total_force - DAMPING * (*vel)) / MASS;
-    *vel = *vel + accelerationX * D_T;
-    *pos = *pos + (*vel) * D_T;
-
-    // Walls are the maximum position the drone can reach
-    if (*pos < 0){*pos = 0;}
-    if (*pos > *maxPos){*pos = *maxPos - 1;}
 }
 
 

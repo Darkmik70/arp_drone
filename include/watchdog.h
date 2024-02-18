@@ -1,7 +1,7 @@
 #ifndef WATCHDOG_H
 #define WATCHDOG_H
 
-#include<sys/types.h>
+#include <sys/types.h>
 
 #define THRESHOLD 50 // Threshold for counters
 

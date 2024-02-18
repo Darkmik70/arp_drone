@@ -3,7 +3,6 @@
 
 #include <signal.h>
 
-
 #define SLEEP_TIME 500000  
 
 void get_args(int argc, char *argv[]);
@@ -12,7 +11,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
 /**
  * Creates shared memory segments
  * 
- *  This is divieded into two parts.
+ *  This is divided into two parts.
  *  The first part creates the shared memory segment with predefined functions and size. 
  *  The second part maps the memory and returns the ptr.
  * 

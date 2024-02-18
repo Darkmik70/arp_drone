@@ -1,7 +1,6 @@
 #ifndef MAIN_H    
 #define MAIN_H
 
-
 void create_pipes();
 
 void close_all_pipes();

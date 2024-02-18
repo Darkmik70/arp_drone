@@ -1,35 +1,17 @@
 #include "interface.h"
-#include "constants.h"
-#include "util.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-
-#include <sys/ipc.h>
-#include <sys/mman.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/select.h>
-
-#include <fcntl.h>
+#include "common.h"
 #include <ncurses.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <errno.h>
 
-// Serverless pipes
-int interface_km[2];
-int interface_drone[2];
-
-// Pipes working with the server
+// PIPES: File descriptor arrays
+int interface_km[2];  // Serverless pipe
+int interface_drone[2];  // Serverless pipe
 int server_interface[2];
 int interface_server[2];
 
+
 int main(int argc, char *argv[])
 {
-    // Get the file descriptors for the pipes from the arguments
+    // Read the file descriptors from the arguments
     get_args(argc, argv);
 
     // Signals
@@ -40,12 +22,15 @@ int main(int argc, char *argv[])
     sigaction(SIGUSR1, &sa, NULL);
     publish_pid_to_wd(WINDOW_SYM, getpid());
 
-    // INITIALIZATION AND EXECUTION OF NCURSES FUNCTIONS
+    //////////////////////////////////////////////////////
+    /* INITIALIZATION OF NCURSES FUNCTIONS */
+    /////////////////////////////////////////////////////
+
     initscr();
     timeout(0);
     curs_set(0);
     noecho();                          
-    // Enable color
+    // Enable colors
     start_color();                         
     init_pair(1, COLOR_BLUE, COLOR_BLACK); // Drone is blue
     init_pair(2, COLOR_RED, COLOR_BLACK);  // Obstacles are red
@@ -53,9 +38,10 @@ int main(int argc, char *argv[])
     init_pair(2, COLOR_YELLOW, COLOR_BLACK); // Obstacles are orange
     init_pair(3, COLOR_GREEN, COLOR_BLACK); // Targets are green
 
+    //////////////////////////////////////////////////////
+    /* SET THE INITIAL DRONE POSITION */
+    /////////////////////////////////////////////////////
 
-
-    /* SET INITIAL DRONE POSITION */
     // Obtain the screen dimensions
     int screen_size_y;
     int screen_size_x;
@@ -68,8 +54,12 @@ int main(int argc, char *argv[])
     sprintf(initial_msg, "I1:%d,%d,%d,%d", droneX, droneY, screen_size_x, screen_size_y);
     write_to_pipe(interface_server[1], initial_msg);
 
-    /* Useful variables creation*/
+    //////////////////////////////////////////////////////
+    /* VARIABLE INITIALIZATION */
+    /////////////////////////////////////////////////////
+
     // To compare current and previous data
+    int iteration = 0;
     int obtained_targets = 0;
     int obtained_obstacles = 0;
     int prev_screen_size_y = 0;
@@ -84,16 +74,14 @@ int main(int argc, char *argv[])
     struct timeval timeout;
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
-
     // Targets and obstacles
     Targets targets[80];
     Targets original_targets[80];
     int numTargets;
-
     Obstacles obstacles[80];
     int numObstacles;
 
-    int iteration = 0;
+
     while (1)
     {
         //////////////////////////////////////////////////////

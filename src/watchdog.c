@@ -1,18 +1,5 @@
 #include "watchdog.h"
-#include "constants.h"
-
-#include <stdio.h>  
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/shm.h>
-#include <sys/mman.h>
-
-#include <fcntl.h>
-#include <semaphore.h>
-#include <signal.h>
+#include "common.h"
 
 // TODO: Make the necessary changes to work with the final version of program for assigment 2
 

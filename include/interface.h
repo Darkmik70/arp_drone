@@ -17,7 +17,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context);
 */
 void get_args(int argc, char *argv[]);
 
-// Function to extract the coordinates from the targets_msg string into the struct Targets.
+/**
+* Function to extract the coordinates from the targets_msg string into the struct Targets.
+*/
 void parseTargetMsg(char *targets_msg, Targets *targets, int *numTargets, Targets *original_targets);
 
 

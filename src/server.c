@@ -1,28 +1,5 @@
 #include "server.h"
-#include "constants.h"
-#include "util.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/select.h>
-#include <sys/types.h> 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h> 
-#include <sys/time.h>
-
-#include <semaphore.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <errno.h>
-
+#include "common.h"
 
 // Pipes
 int km_server[2];
@@ -43,11 +20,6 @@ sem_t *sem_logs_1;
 sem_t *sem_logs_2;
 sem_t *sem_logs_3;
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;  // Semaphores for watchdog
-
-void read_then_echo(int sockfd, char msg[]);
-int read_then_echo_unblocked(int sockfd, char msg[]);
-void write_then_wait_echo(int sockfd, char msg[], size_t);
-int read_pipe_unblocked(int pipefd, char msg[]);
 
 int main(int argc, char *argv[]) 
 {   
@@ -329,99 +301,5 @@ void get_args(int argc, char *argv[])
 }
 
 
-void read_then_echo(int sockfd, char socket_msg[]){
-    int bytes_read, bytes_written;
-    bzero(socket_msg, MSG_LEN);
 
-    // Read from the socket
-    bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
-    if (bytes_read < 0) perror("ERROR reading from socket");
-    printf("[SOCKET] Received: %s\n", socket_msg);
-    
-    // Echo data read into socket
-    bytes_written = write(sockfd, socket_msg, bytes_read);
-    printf("[SOCKET] Echo sent: %s\n", socket_msg);
-}
-
-
-int read_then_echo_unblocked(int sockfd, char socket_msg[]) {
-    int ready;
-    int bytes_read, bytes_written;
-    fd_set read_fds;
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    // Clear the buffer
-    bzero(socket_msg, MSG_LEN);
-
-    // Initialize the set of file descriptors to monitor for reading
-    FD_ZERO(&read_fds);
-    FD_SET(sockfd, &read_fds);
-
-    // Use select to check if the socket is ready for reading
-    ready = select(sockfd + 1, &read_fds, NULL, NULL, &timeout);
-    if (ready < 0) {perror("ERROR in select");} 
-    else if (ready == 0) {return 0;}  // No data available
-
-    // Data is available for reading, so read from the socket
-    bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
-    if (bytes_read < 0) {perror("ERROR reading from socket");} 
-    else if (bytes_read == 0) {return 0;}  // Connection closed
-    else if (socket_msg[0] == '\0') {return 0;} // Empty string
-
-    // Print the received message
-    printf("[SOCKET] Received: %s\n", socket_msg);
-
-    // Echo the message back to the client
-    bytes_written = write(sockfd, socket_msg, bytes_read);
-    if (bytes_written < 0) {perror("ERROR writing to socket");}
-    else{printf("[SOCKET] Echo sent: %s\n", socket_msg); return 1;}
-}
-
-
-int read_pipe_unblocked(int pipefd, char msg[]){
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-    fd_set read_pipe;
-    FD_ZERO(&read_pipe);
-    FD_SET(pipefd, &read_pipe);
-
-    char buffer[MSG_LEN];
-
-    int ready_km = select(pipefd + 1, &read_pipe, NULL, NULL, &timeout);
-    if (ready_km == -1) {perror("Error in select");}
-
-    if (ready_km > 0 && FD_ISSET(pipefd, &read_pipe)) {
-        ssize_t bytes_read_pipe = read(pipefd, buffer, MSG_LEN);
-        if (bytes_read_pipe > 0) {
-            strcpy(msg, buffer);
-            return 1;
-        }
-        else{return 0;}
-    }
-}
-
-
-void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size){
-    int ready;
-    int bytes_read, bytes_written;
-
-    bytes_written = write(sockfd, socket_msg, msg_size);
-    if (bytes_written < 0) {perror("ERROR writing to socket");}
-    printf("[SOCKET] Sent: %s\n", socket_msg);
-
-    // Clear the buffer
-    bzero(socket_msg, MSG_LEN);
-
-    while (socket_msg[0] == '\0'){
-        // Data is available for reading, so read from the socket
-        bytes_read = read(sockfd, socket_msg, bytes_written);
-        if (bytes_read < 0) {perror("ERROR reading from socket");} 
-        else if (bytes_read == 0) {printf("Connection closed!\n"); return;}
-    }
-    // Print the received message
-    printf("[SOCKET] Echo received: %s\n", socket_msg);
-}
 
