@@ -4,9 +4,9 @@
 // GLOBAL VARIABLES
 int shm_logs_fd;             // File descriptor for logs shm
 void *ptr_logs;              // Shared memory for logs
-sem_t *sem_logs_1;              // Semphore for logging info and errors
-sem_t *sem_logs_2;              // Semphore for logging info and errors
-sem_t *sem_logs_3;              // Semphore for logging info and errors
+sem_t *sem_logs_1;              // Semaphore for logging info and errors
+sem_t *sem_logs_2;              // Semaphore for logging info and errors
+sem_t *sem_logs_3;              // Semaphore for logging info and errors
 FILE *logfile;               // Pointer to the logfile
 
 

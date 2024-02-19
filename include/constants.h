@@ -28,6 +28,8 @@
 #define DRONE_SYM 4
 #define LOGGER_SYM 5
 #define WD_SYM 6
+#define OBSTACLES_SYM 7
+#define TARGETS_SYM 8
 
 // SYMBOLS FOR LOG TYPES
 #define INFO 1

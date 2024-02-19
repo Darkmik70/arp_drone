@@ -2,6 +2,7 @@
 #define OBSTACLES_H
 
 #include <time.h>
+#include <signal.h>
 
 // User-defined parameters
 #define MAX_OBSTACLES 5
@@ -21,6 +22,11 @@ typedef struct {
  * Obtain the file descriptors of the pipes given by the main process.
 */
 void get_args(int argc, char *argv[]);
+
+/**
+ * Handles the signals monitored by the watchdog process.
+*/
+void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 /**
  * Generates a string for the obstacles according to protocol.

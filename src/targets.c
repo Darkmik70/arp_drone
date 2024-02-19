@@ -11,6 +11,15 @@ int main(int argc, char *argv[])
     sleep(1);
     // Read the file descriptors from the arguments
     get_args(argc, argv);
+
+    // Signals
+    struct sigaction sa;
+    sa.sa_sigaction = signal_handler; 
+    sa.sa_flags = SA_SIGINFO;
+    sigaction (SIGINT, &sa, NULL);
+    sigaction (SIGUSR1, &sa, NULL);   
+    publish_pid_to_wd(KM_SYM, getpid());
+
     // Seed random number generator with current time
     srand(time(NULL));
 
@@ -163,6 +172,27 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+}
+
+
+void signal_handler(int signo, siginfo_t *siginfo, void *context) 
+{
+    // printf("Received signal number: %d \n", signo);
+    if  (signo == SIGINT)
+    {
+        printf("Caught SIGINT \n");
+        close(targets_server[1]);
+        close(server_targets[0]);
+        exit(1);
+    }
+    if (signo == SIGUSR1)
+    {
+        // Get watchdog's pid
+        pid_t wd_pid = siginfo->si_pid;
+        // inform on your condition
+        kill(wd_pid, SIGUSR2);
+        // printf("SIGUSR2 SENT SUCCESSFULLY\n");
+    }
 }
 
 
