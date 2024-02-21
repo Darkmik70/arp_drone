@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
     sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);
     sigaction (SIGUSR1, &sa, NULL);   
-    publish_pid_to_wd(KM_SYM, getpid());
+    publish_pid_to_wd(OBSTACLES_SYM, getpid());
 
     // Seed random number generator with current time
     srand(time(NULL));

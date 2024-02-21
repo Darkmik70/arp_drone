@@ -26,8 +26,8 @@ int cnt_logger;
 void signal_handler(int signo, siginfo_t *siginfo, void *context)
 {
     printf("Received signal number: %d\n from ", signo);
-    if (signo == SIGINT) {send_sigint_to_all();} 
-    
+    if (signo == SIGINT) 
+        send_sigint_to_all(); 
     if (signo == SIGUSR2)
     {
         // CHECK THE PID OF SENDER AND SET COUNTERS TO ZERO
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 
     // Get pid of the processes
     get_pids(&server_pid, &interface_pid, &km_pid, &drone_pid, &obstacles_pid, &targets_pid);
-    printf("WD PID IS: %d\n", wd_pid);
+    printf(" PID of WD: %d\n", wd_pid);
 
     /*TODO: remove hardcoded values in WATCHDOG */
     cnt_server = 0;
@@ -105,32 +105,40 @@ int main(int argc, char* argv[])
     while(1)
     {
         // FIXME
-        // // increment counter
-        // cnt_server++;
-        // cnt_window++;
-        // cnt_km++;
-        // cnt_drone++;
-        // /* cnt_logger++; */
+        // increment counter
+        cnt_server++;
+        cnt_window++;
+        cnt_km++;
+        cnt_drone++;
+        cnt_obstacles++;
+        cnt_targets++;
+        /* cnt_logger++; */
 
-        // /* Monitor health of all of the processes */
-        // kill(server_pid,SIGUSR1);
-        // usleep(500);
-        // kill(interface_pid, SIGUSR1);
-        // usleep(500);
-        // kill(km_pid, SIGUSR1);
-        // usleep(500);
-        // kill(drone_pid, SIGUSR1);
-        // usleep(500);
-        // /* kill(logger_pid, SIGUSR1); */
+        /* Monitor health of all of the processes */
+        kill(server_pid, SIGUSR1);
+        usleep(500);
+        kill(interface_pid, SIGUSR1);
+        usleep(500);
+        kill(km_pid, SIGUSR1);
+        usleep(500);
+        kill(drone_pid, SIGUSR1);
+        usleep(500);
+        kill(targets_pid, SIGUSR1);
+        usleep(500);
+        kill(obstacles_pid, SIGUSR1);
+        usleep(500);
+
+        /* kill(logger_pid, SIGUSR1); */
 
 
 
-        // // If any of the processess does not respond in given timeframe, close them all
-        // if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD /*|| cnt_logger > THRESHOLD */)
-        // {
-        //     send_sigint_to_all();
-        // }
-        usleep(100000);
+        // If any of the processess does not respond in given timeframe, close them all
+        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
+            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
+        {
+            send_sigint_to_all();
+        }
+        usleep(1000000);
     }
 
     return 0;
@@ -159,6 +167,7 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
         int symbol = 0;
         pid_t pid_temp;
         sscanf(ptr_wd, "%i %i", &symbol, &pid_temp);
+        // printf("current pid %d  symbol %i \n", pid_temp, symbol);
         switch (symbol)
         {
         case SERVER_SYM:
@@ -229,14 +238,14 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
 
 void send_sigint_to_all()
 {
-        kill(interface_pid, SIGINT);
-        kill(km_pid, SIGINT);
-        kill(drone_pid, SIGINT);
-        kill(server_pid, SIGINT);
-        kill(obstacles_pid, SIGINT);
-        kill(targets_pid, SIGINT);
-        // kill(logger_pid, SIGINT);
-        printf("WD sent SIGINT to all processes, exiting...\n");
-        exit(1);
+    kill(interface_pid, SIGINT);
+    kill(km_pid, SIGINT);
+    kill(drone_pid, SIGINT);
+    kill(server_pid, SIGINT);
+    kill(obstacles_pid, SIGINT);
+    kill(targets_pid, SIGINT);
+    // kill(logger_pid, SIGINT);
+    printf("WD sent SIGINT to all processes, exiting...\n");
+    exit(1);
 }
 

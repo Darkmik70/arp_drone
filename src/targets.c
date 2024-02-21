@@ -5,6 +5,8 @@
 int server_targets[0];
 int targets_server[1];
 
+// Sockets
+int sockfd;
 
 int main(int argc, char *argv[]) 
 {
@@ -18,7 +20,7 @@ int main(int argc, char *argv[])
     sa.sa_flags = SA_SIGINFO;
     sigaction (SIGINT, &sa, NULL);
     sigaction (SIGUSR1, &sa, NULL);   
-    publish_pid_to_wd(KM_SYM, getpid());
+    publish_pid_to_wd(TARGETS_SYM, getpid());
 
     // Seed random number generator with current time
     srand(time(NULL));
@@ -35,7 +37,7 @@ int main(int argc, char *argv[])
     /* SOCKET INITIALIZATION */
     /////////////////////////////////////////////////////
 
-    int sockfd, portno, n;
+    int portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -171,6 +173,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    clean_up();
+
     return 0;
 }
 
@@ -181,8 +185,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     if  (signo == SIGINT)
     {
         printf("Caught SIGINT \n");
-        close(targets_server[1]);
-        close(server_targets[0]);
+        clean_up();
         exit(1);
     }
     if (signo == SIGUSR1)
@@ -201,4 +204,10 @@ void get_args(int argc, char *argv[])
     sscanf(argv[1], "%d %d", &server_targets[0], &targets_server[1]);
 }
 
+void clean_up()
+{
+    close(targets_server[1]);
+    close(server_targets[0]);
+    close(sockfd);
+}
 

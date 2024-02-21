@@ -13,11 +13,16 @@ int server_targets[2];
 int targets_server[2];
 
 // Shared memory and semaphores
-void *ptr_wd;                           // Shared memory for WD
-void *ptr_logs;                         // Shared memory for logger
+void *ptr_wd;                                   // Shared memory for WD
+void *ptr_logs;                                 // Shared memory for logger
 sem_t *sem_wd_1, *sem_wd_2, *sem_wd_3;          // Semaphores for WD
 sem_t *sem_logs_1, *sem_logs_2, *sem_logs_3;    // Semaphores for logger
 
+// Sockets
+int obstacles_sockfd;
+int targets_sockfd;
+int sockfd;
+int newsockfd, portno, clilen, pid;
 
 int main(int argc, char *argv[]) 
 {   
@@ -67,7 +72,7 @@ int main(int argc, char *argv[])
 
     int obstacles_sockfd = 0;
     int targets_sockfd = 0;
-    int sockfd, newsockfd, portno, clilen, pid;
+    int sockfd = 0, newsockfd = 0, portno, clilen, pid;
     struct sockaddr_in serv_addr, cli_addr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -258,7 +263,6 @@ void *create_shm(char *name)
     }
     // File descriptor is no longer needed
     close(shm_fd);
-
     return shm_ptr;
 }
 
@@ -277,6 +281,12 @@ void clean_up()
     munmap(ptr_wd, SIZE_SHM);
     // Unlink shared memories
     shm_unlink(SHM_WD);
+
+    // Close all sockets
+    close(sockfd);
+    close(obstacles_sockfd);
+    close(targets_sockfd);
+    close(newsockfd);
     printf("Clean up has been performed succesfully\n");
 }
 

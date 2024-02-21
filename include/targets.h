@@ -22,6 +22,6 @@ void get_args(int argc, char *argv[]);
 */
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
-
+void clean_up();
 
 #endif // TARGETS_H
