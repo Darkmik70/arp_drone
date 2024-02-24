@@ -102,44 +102,44 @@ int main(int argc, char* argv[])
     cnt_obstacles = 0;
     cnt_targets = 0;
 
-    while(1)
-    {
-        // FIXME
-        // increment counter
-        cnt_server++;
-        cnt_window++;
-        cnt_km++;
-        cnt_drone++;
-        cnt_obstacles++;
-        cnt_targets++;
-        /* cnt_logger++; */
+    // while(1)
+    // {
+    //     // FIXME
+    //     // increment counter
+    //     cnt_server++;
+    //     cnt_window++;
+    //     cnt_km++;
+    //     cnt_drone++;
+    //     cnt_obstacles++;
+    //     cnt_targets++;
+    //     /* cnt_logger++; */
 
-        /* Monitor health of all of the processes */
-        kill(server_pid, SIGUSR1);
-        usleep(500);
-        kill(interface_pid, SIGUSR1);
-        usleep(500);
-        kill(km_pid, SIGUSR1);
-        usleep(500);
-        kill(drone_pid, SIGUSR1);
-        usleep(500);
-        kill(targets_pid, SIGUSR1);
-        usleep(500);
-        kill(obstacles_pid, SIGUSR1);
-        usleep(500);
+    //     /* Monitor health of all of the processes */
+    //     kill(server_pid, SIGUSR1);
+    //     usleep(500);
+    //     kill(interface_pid, SIGUSR1);
+    //     usleep(500);
+    //     kill(km_pid, SIGUSR1);
+    //     usleep(500);
+    //     kill(drone_pid, SIGUSR1);
+    //     usleep(500);
+    //     kill(targets_pid, SIGUSR1);
+    //     usleep(500);
+    //     kill(obstacles_pid, SIGUSR1);
+    //     usleep(500);
 
-        /* kill(logger_pid, SIGUSR1); */
+    //     /* kill(logger_pid, SIGUSR1); */
 
 
 
-        // If any of the processess does not respond in given timeframe, close them all
-        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
-            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
-        {
-            send_sigint_to_all();
-        }
-        usleep(1000000);
-    }
+    //     // If any of the processess does not respond in given timeframe, close them all
+    //     if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
+    //         cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
+    //     {
+    //         send_sigint_to_all();
+    //     }
+    //     usleep(1000000);
+    // }
 
     return 0;
 }

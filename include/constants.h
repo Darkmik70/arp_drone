@@ -1,9 +1,6 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-// PORT NUMBER FOR SOCKETS
-#define PORT_NUMBER 3000
-
 // General message length
 #define MSG_LEN 1024
 

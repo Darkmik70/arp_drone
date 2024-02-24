@@ -9,6 +9,21 @@ int obstacles_server[2];
 int main(int argc, char *argv[])
 {   
     sleep(1);
+    // Read the config.txt file
+    char program_type[MSG_LEN];
+    char socket_data[MSG_LEN];
+    read_args_from_file("./src/config.txt", program_type, socket_data);
+    char host_name[MSG_LEN];
+    int port_number;
+    printf("Program type: %s\n", program_type);
+
+    parse_host_port(socket_data, host_name, &port_number);
+    printf("Host name: %s\n", host_name);
+    printf("Port number: %d\n", port_number);
+
+    if (strcmp(program_type, "server") == 0){exit(0);}
+
+
     // Read the file descriptors from the arguments
     get_args(argc, argv);
     // Signals
@@ -36,12 +51,12 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    portno = PORT_NUMBER;
+    portno = port_number;  // Obtained from config.txt
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {perror("ERROR opening socket");}
 
-    server = gethostbyname("localhost");
+    server = gethostbyname(host_name);  // Obtained from config.txt
     if (server == NULL) {fprintf(stderr,"ERROR, no such host\n");}
 
     bzero((char *) &serv_addr, sizeof(serv_addr)); 

@@ -45,7 +45,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 }
 
 int main(int argc, char *argv[])
-{
+{   
     // Signals
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
@@ -207,3 +207,4 @@ void close_all_pipes()
     close(obstacles_server[0]);
     close(obstacles_server[1]);
 }
+

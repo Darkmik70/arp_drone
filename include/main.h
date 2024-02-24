@@ -15,5 +15,7 @@ int create_child(const char *program, char **arg_list);
 */
 void close_all_pipes();
 
+void get_args(int argc, char *argv[], char *program_type, char *socket_data);
+
 
 #endif // MAIN_H

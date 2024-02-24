@@ -20,7 +20,7 @@ $(LOGDIR):
 
 # Run project
 run:
-	./$(BUILDDIR)/main
+	./$(BUILDDIR)/main $(ARGS)
 
 clean:
 	rm -f $(BUILDDIR)/main

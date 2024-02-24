@@ -125,24 +125,31 @@ int read_then_echo_unblocked(int sockfd, char socket_msg[]) {
 
 // Writes a message into the socket, then loops/waits until a valid echo is read.
 void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size){
-    int ready;
+    int correct_echo = 0;
     int bytes_read, bytes_written;
+    char response_msg[MSG_LEN];
 
-    bytes_written = write(sockfd, socket_msg, msg_size);
-    if (bytes_written < 0) {perror("ERROR writing to socket");}
-    printf("[SOCKET] Sent: %s\n", socket_msg);
+    while(correct_echo == 0){
+        bytes_written = write(sockfd, socket_msg, msg_size);
+        if (bytes_written < 0) {perror("ERROR writing to socket");}
+        printf("[SOCKET] Sent: %s\n", socket_msg);
 
-    // Clear the buffer
-    bzero(socket_msg, MSG_LEN);
+        // Clear the buffer
+        bzero(response_msg, MSG_LEN);
 
-    while (socket_msg[0] == '\0'){
-        // Data is available for reading, so read from the socket
-        bytes_read = read(sockfd, socket_msg, bytes_written);
-        if (bytes_read < 0) {perror("ERROR reading from socket");} 
-        else if (bytes_read == 0) {printf("Connection closed!\n"); return;}
+        while (response_msg[0] == '\0'){
+            // Data is available for reading, so read from the socket
+            bytes_read = read(sockfd, response_msg, bytes_written);
+            if (bytes_read < 0) {perror("ERROR reading from socket");} 
+            else if (bytes_read == 0) {printf("Connection closed!\n"); return;}
+        }
+
+        if (strcmp(socket_msg, response_msg) == 0){
+            // Print the received message
+            printf("[SOCKET] Echo received: %s\n", response_msg);
+            correct_echo = 1;
+        }
     }
-    // Print the received message
-    printf("[SOCKET] Echo received: %s\n", socket_msg);
 }
 
 // Reads a message from the pipe with select() system call.
@@ -169,10 +176,49 @@ int read_pipe_unblocked(int pipefd, char msg[]){
     }
 }
 
+// Reads the first line of uncommented text from a file
+void read_args_from_file(const char *filename, char *type, char *data)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error opening file %s\n", filename);
+        // exit(EXIT_FAILURE);
+    }
 
+    // Read lines until finding the first non-comment line
+    char line[MSG_LEN];
+    while (fgets(line, sizeof(line), file) != NULL) {
+        // Skip lines starting with '#' (comments)
+        if (line[0] != '#') {
+            // Tokenize the line to extract type and data
+            char *token = strtok(line, " \t\n");
+            if (token != NULL) {
+                strncpy(type, token, MSG_LEN);
+                token = strtok(NULL, " \t\n");
+                if (token != NULL) {
+                    strncpy(data, token, MSG_LEN);
+                    fclose(file);
+                    return;
+                }
+            }
+        }
+    }
+}
 
+// Obtains both the host name and the port number from a formatted string
+void parse_host_port(const char *str, char *host, int *port) {
+    char *colon = strchr(str, ':');
+    if (colon == NULL) {
+        fprintf(stderr, "Invalid input: No colon found\n");
+        exit(EXIT_FAILURE);
+    }
 
+    int len = colon - str;
+    strncpy(host, str, len);
+    host[len] = '\0';
 
+    *port = atoi(colon + 1);
+}
 
 
 

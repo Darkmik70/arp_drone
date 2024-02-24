@@ -22,4 +22,8 @@ void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size);
 
 int read_pipe_unblocked(int pipefd, char msg[]);
 
+void read_args_from_file(const char *filename, char *type, char *data);
+
+void parse_host_port(const char *str, char *host, int *port);
+
 #endif // UTIL_H
