@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     portno = port_number;  // Obtained from config.txt
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {perror("ERROR opening socket");}
+    if (sockfd < 0) {log_err(logfile, OBS, "ERROR opening socket");}
 
     server = gethostbyname(host_name);  // Obtained from config.txt
     if (server == NULL) {fprintf(stderr,"ERROR, no such host\n");}
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
 
     if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
-        perror("ERROR connecting");
+        log_err(logfile, OBS, "ERROR connecting");
 
     //////////////////////////////////////////////////////
     /* IDENTIFICATION WITH SERVER */

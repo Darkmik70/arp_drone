@@ -26,11 +26,14 @@ pid_t obstacles_pid;
 
 FILE *logfile;               // Pointer to the logfile
 char logfile_path[80];
-
-
+char msg[1024];
 
 int main(int argc, char *argv[])
 {   
+    // Create Logfile
+    create_logfile();
+    log_msg(logfile_path, "MAIN", "All processes created");
+
     // Signals
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
@@ -39,25 +42,22 @@ int main(int argc, char *argv[])
     sigaction(SIGUSR1, &sa, NULL);
 
     // Serverless pipe creation
-    if (pipe(interface_km) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(interface_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_km) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_drone) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: To server
-    if (pipe(km_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(drone_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(interface_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(obstacles_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(targets_server) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(km_server) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(drone_server) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(interface_server) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(obstacles_server) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(targets_server) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
 
     // Pipe creation: From server
-    if (pipe(server_drone) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(server_interface) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(server_obstacles) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
-    if (pipe(server_targets) == -1) {perror("pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_drone) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_interface) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_obstacles) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
+    if (pipe(server_targets) == -1) {log_err(logfile_path, "MAIN", "pipe"); exit(EXIT_FAILURE);}
 
-    // Create Logfile
-    create_logfile();
-    log_msg(logfile_path, "MAIN", "All processes created");
 
     // Passing file descriptors for pipes used on server.c
     char server_fds[160];
@@ -90,7 +90,8 @@ int main(int argc, char *argv[])
     int p_num = 0;      // Number of processes
 
     /* Server */
-    char *server_args[] = {"konsole", "-e", "./build/server", server_fds, NULL};
+    // char *server_args[] = {"konsole", "-e", "./build/server", server_fds, NULL};
+    char *server_args[] = {"./build/server", server_fds, NULL};
     server_pid = create_child(server_args[0], server_args);
     p_num++;
     usleep(delay * 10); // Extended time: For server priority
@@ -102,13 +103,13 @@ int main(int argc, char *argv[])
     usleep(delay);
 
     /* Targets */
-    char *targets_args[] = {"konsole", "-e", "./build/targets", targets_fds, NULL};
+    char *targets_args[] = {"./build/targets", targets_fds, NULL};
     targets_pid = create_child(targets_args[0], targets_args);
     p_num++;
     usleep(delay);
 
     /* Obstacles */
-    char *obstacles_args[] = {"konsole", "-e", "./build/obstacles", obstacles_fds, NULL};
+    char *obstacles_args[] = {"./build/obstacles", obstacles_fds, NULL};
     obstacles_pid = create_child(obstacles_args[0], obstacles_args);
     p_num++;
     usleep(delay);
@@ -121,16 +122,15 @@ int main(int argc, char *argv[])
     usleep(delay);
 
     /* Drone */
-    char *drone_args[] = {"konsole", "-e", "./build/drone", drone_fds, NULL};
+    char *drone_args[] = {"./build/drone", drone_fds, NULL};
     drone_pid = create_child(drone_args[0], drone_args);
     p_num++;
     usleep(delay);
 
     /* Watchdog */
-    char *wd_args[] = {"konsole", "-e", "./build/watchdog", logfile_path, NULL};
+    char *wd_args[] = {"./build/watchdog", logfile_path, NULL};
     wd_pid = create_child(wd_args[0], wd_args);
     p_num++;
-    printf("Watchdog Created\n");
 
     /* Wait for all children to close */
     for (int i = 0; i < p_num; i++)
@@ -140,10 +140,14 @@ int main(int argc, char *argv[])
 
         if (WIFEXITED(status))
         {
-            printf("Child process with PID: %i terminated with exit status: %i\n", pid, WEXITSTATUS(status));
+            sprintf(msg, "Child process with PID: %i terminated with exit status: %i\n", pid, WEXITSTATUS(status));
+            printf("%s", msg);
+            log_msg(logfile_path, "MAIN", msg);
         }
     }
-    printf("All child processes closed, closing main process...\n");
+    sprintf(msg, "All child processes closed, closing main process...\n");
+    printf("%s", msg);
+    log_msg(logfile_path, "MAIN", msg);
     cleanup();
     return 0;
 }
@@ -152,7 +156,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 {
     if (signo == SIGINT)
     {
-        printf("Caught SIGINT, killing all children... \n");
+        sprintf(msg, "Caught SIGINT, killing all children... \n");
+        printf("%s", msg);
+        log_msg(logfile_path, "MAIN", msg);
         kill(server_pid, SIGKILL);
         kill(window_pid, SIGKILL);
         kill(km_pid, SIGKILL);
@@ -161,7 +167,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
         kill(logger_pid, SIGKILL);
         kill(targets_pid, SIGKILL);
         kill(obstacles_pid, SIGKILL);
-        printf("Closing all pipes.. \n");
+        sprintf(msg, "Closing all pipes.. \n");
+        printf("%s", msg);
+        log_msg(logfile_path, "MAIN", msg);
         cleanup();
         exit(1);
     }
@@ -201,11 +209,13 @@ int create_child(const char *program, char **arg_list)
     pid_t child_pid = fork();
     if (child_pid != 0)
     {
-        printf("Child process %s with PID: %d  was created\n", program, child_pid);
+        sprintf(msg, "Child process %s with PID: %d  was created\n", program, child_pid);
+        printf("%s", msg);
+        log_msg(logfile_path, "MAIN", msg);
         return child_pid;
     }
     else if (child_pid == 0) {execvp(program, arg_list);}
-    else {perror("Fork failed");}
+    else {log_err(logfile_path, "MAIN", "Fork failed");}
 }
 
 void cleanup()

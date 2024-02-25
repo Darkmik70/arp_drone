@@ -15,6 +15,17 @@
 void log_msg(char *filepath, char *who, char *message);
 
 /**
+ * log error to the logfile
+ * 
+ * @param filepath filepath to the logfile
+ * @param who name of the process, written in capital letters
+ * @param message error message
+ * HOW TO WRITE A PROPER MESSAGE, follow this format:
+ * [WHO] WHAT TIME
+*/
+void log_err(char *filepath, char *who, char *message);
+
+/**
  * Publish process pid to watchdog process
  *  @param process_symbol character that represent to which process PID will belong
  *  @param pid_t process pid

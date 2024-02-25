@@ -54,6 +54,34 @@ void log_msg(char *filepath, char* who, char *message)
     message = ""; // clear the buffer
 }
 
+void log_err(char *filepath, char* who, char *message)
+{
+    perror(message);
+    // Open the file
+    FILE *file_fd = fopen(filepath, "a");
+    if (file_fd == NULL)
+    {
+        perror("Logfile open failed!");
+        exit(1);
+    }
+    
+    // Get the current time
+    time_t currentTime;
+    time(&currentTime);
+    struct tm *localTime = localtime(&currentTime);
+    int hours = localTime->tm_hour;
+    int minutes = localTime->tm_min;
+    int seconds = localTime->tm_sec;
+    
+    char time[80];
+    char *eol = "\n";
+    sprintf(time, "%02d:%02d:%02d", hours, minutes, seconds);
+    
+    fprintf(file_fd, "[ERROR][%s] at [%s:] %s", who, time, message);
+    fclose(file_fd); //close file at the end
+    message = ""; // clear the buffer
+}
+
     // Writes message using the file descriptor provided.
 void write_to_pipe(int pipe_fd, char message[])
 {
