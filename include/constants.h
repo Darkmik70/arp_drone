@@ -2,7 +2,7 @@
 #define CONSTANTS_H
 
 // General message length
-#define MSG_LEN 1024
+#define MSG_LEN 256
 
 // Specific message length for logfiles
 #define LOG_LEN 256
@@ -18,15 +18,23 @@
 #define SEM_LOGS_2 "/my_semaphore_logs_2"
 #define SEM_LOGS_3 "/my_semaphore_logs_3"
 
-// SYMBOLS FOR WATCHDOG and LOGGER
+// SYMBOLS FOR WATCHDOG
 #define SERVER_SYM 1
 #define WINDOW_SYM 2
 #define KM_SYM 3
 #define DRONE_SYM 4
-#define LOGGER_SYM 5
 #define WD_SYM 6
 #define OBSTACLES_SYM 7
 #define TARGETS_SYM 8
+
+// STRINGS FOR LOGS
+#define SERVER "SERVER"
+#define INTERFACE "INTERFACE"
+#define KM "KEY MANAGER"
+#define DRONE "DRONE"
+#define WD "WATCHDOG"
+#define OBS "OBSTACLES"
+#define TARGETS "TARGETS"
 
 // SYMBOLS FOR LOG TYPES
 #define INFO 1

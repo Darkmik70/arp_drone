@@ -6,6 +6,9 @@ int interface_drone[2];  // Serverless pipe
 int server_drone[2];
 int drone_server[2];
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
 
 int main(int argc, char *argv[]) 
 {
@@ -51,10 +54,10 @@ int main(int argc, char *argv[])
             // Message origin: Interface
             else if (server_msg[0] == 'I' && server_msg[1] == '1'){
                 sscanf(server_msg, "I1:%d,%d,%d,%d", &x, &y, &screen_size_x, &screen_size_y);
-                printf("Obtained initial parameters from server: %s\n", server_msg);
+                sprintf(msg, "Obtained initial parameters from server: %s\n", server_msg);
+                log_msg(logfile, DRONE, msg);
                 pos_x = (double)x;
                 pos_y = (double)y;
-                fflush(stdout);
             }
             // Message origin: Interface
             else if (server_msg[0] == 'I' && server_msg[1] == '2'){
@@ -129,11 +132,14 @@ int main(int argc, char *argv[])
         // Only print the data ONLY when there is movement from the drone.
         if (fabs(Vx) > TOLERANCE || fabs(Vy) > TOLERANCE)
         {
-            printf("Drone force (X,Y): %.2f,%.2f\t|\t",forceX,forceY);
-            printf("External force (X,Y): %.2f,%.2f\n",ext_forceX,ext_forceY);
-            printf("X - Position: %.2f / Velocity: %.2f\t|\t", pos_x, Vx);
-            printf("Y - Position: %.2f / Velocity: %.2f\n", pos_y, Vy);
-            fflush(stdout);
+            sprintf(msg, "Drone force (X,Y): %.2f,%.2f\t|\t",forceX,forceY);
+            log_msg(logfile, DRONE, msg);
+            sprintf(msg, "External force (X,Y): %.2f,%.2f\n",ext_forceX,ext_forceY);
+            log_msg(logfile, DRONE, msg);
+            sprintf(msg, "X - Position: %.2f / Velocity: %.2f\t|\t", pos_x, Vx);
+            log_msg(logfile, DRONE, msg);
+            sprintf(msg, "Y - Position: %.2f / Velocity: %.2f\n", pos_y, Vy);
+            log_msg(logfile, DRONE, msg);
         }
 
         int xf = (int)round(pos_x);
@@ -159,14 +165,16 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     //printf("Received signal number: %d \n", signo);
     if( signo == SIGINT)
     {
-        printf("Caught SIGINT \n");
+        sprintf(msg, "Caught SIGINT \n");
+        log_msg(logfile, DRONE, msg);
         close(interface_drone[0]);
         close(interface_drone[1]);
         close(server_drone[0]);
         close(server_drone[1]);
         close(drone_server[0]);
         close(drone_server[1]);
-        printf("Succesfully performed the cleanup\n");
+        sprintf(msg,"Succesfully performed the cleanup\n");
+        log_msg(logfile, DRONE, msg);
         exit(1);
     }
     if (signo == SIGUSR1)
@@ -260,5 +268,5 @@ void parse_obstacles_string(char *obstacles_msg, Obstacles *obstacles, int *numO
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d", &server_drone[0], &drone_server[1], &interface_drone[0]);
+    sscanf(argv[1], "%d %d %d %s", &server_drone[0], &drone_server[1], &interface_drone[0], logfile);
 }

@@ -22,12 +22,5 @@ void get_args(int argc, char *argv[]);
 */
 void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
-/**
- * KEY_MANAGER sends message to logger process of type INFO
- * 
- * @param msg   Character string with message
-*/
-void log_msg(char *msg);
-
 
 #endif // KEY_MANAGER_H

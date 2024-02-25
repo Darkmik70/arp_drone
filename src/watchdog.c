@@ -22,48 +22,60 @@ int cnt_targets;
 
 int cnt_logger;
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
+
 
 void signal_handler(int signo, siginfo_t *siginfo, void *context)
 {
-    printf("Received signal number: %d\n from ", signo);
-    if (signo == SIGINT) 
+    sprintf(msg, "Received signal number: %d\n from ", signo);
+    log_msg(logfile, WD, msg);
+    if (signo == SIGINT)
         send_sigint_to_all(); 
     if (signo == SIGUSR2)
     {
         // CHECK THE PID OF SENDER AND SET COUNTERS TO ZERO
         if (siginfo->si_pid == server_pid)
         {
-            printf("Server has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Server\n");
+            log_msg(logfile, WD, msg);
             cnt_server = 0;
         }
         if (siginfo->si_pid == interface_pid)
         {
-            printf("Interface has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Interface \n");
+            log_msg(logfile, WD, msg);
             cnt_window = 0;
         }
         if (siginfo->si_pid == km_pid)
         {
-            printf("Key Manager has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Key Manager \n");
+            log_msg(logfile, WD, msg);
             cnt_km = 0;
         }
         if (siginfo->si_pid == drone_pid)
         {
-            printf("Drone has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Drone\n");
+            log_msg(logfile, WD, msg);
             cnt_drone = 0;
         }
         if (siginfo->si_pid == logger_pid)
         {
-            printf("Logger has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Logger \n");
+            log_msg(logfile, WD, msg);
             cnt_logger = 0;
         }
         if (siginfo->si_pid == obstacles_pid)
         {
-            printf("Obstacles has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Obstacles \n");
+            log_msg(logfile, WD, msg);
             cnt_obstacles = 0;
         }
         if (siginfo->si_pid == targets_pid)
         {
-            printf("Targets has sent SIGUSR2 \n\n");
+            sprintf(msg, "Received SIGUSR2 from Targets\n");
+            log_msg(logfile, WD, msg);
             cnt_obstacles = 0;
         }
     }
@@ -72,6 +84,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 
 int main(int argc, char* argv[])
 {
+    get_args(argc, argv);
+
     /* Sigaction */
     struct sigaction sa;
     sa.sa_sigaction = signal_handler;
@@ -91,7 +105,9 @@ int main(int argc, char* argv[])
 
     // Get pid of the processes
     get_pids(&server_pid, &interface_pid, &km_pid, &drone_pid, &obstacles_pid, &targets_pid);
-    printf(" PID of WD: %d\n", wd_pid);
+    sprintf(msg, "PID of WATCHDOG: %d\n", wd_pid);
+    log_msg(logfile, WD, msg);
+
 
     /*TODO: remove hardcoded values in WATCHDOG */
     cnt_server = 0;
@@ -102,44 +118,41 @@ int main(int argc, char* argv[])
     cnt_obstacles = 0;
     cnt_targets = 0;
 
-    // while(1)
-    // {
-    //     // FIXME
-    //     // increment counter
-    //     cnt_server++;
-    //     cnt_window++;
-    //     cnt_km++;
-    //     cnt_drone++;
-    //     cnt_obstacles++;
-    //     cnt_targets++;
-    //     /* cnt_logger++; */
+    while(1)
+    {
+        // increment counter
+        // cnt_server++;
+        // cnt_window++;
+        // cnt_km++;
+        // cnt_drone++;
+        // cnt_obstacles++;
+        // cnt_targets++;
+        // fflush(stdout);
+        /* cnt_logger++; */
 
-    //     /* Monitor health of all of the processes */
-    //     kill(server_pid, SIGUSR1);
-    //     usleep(500);
-    //     kill(interface_pid, SIGUSR1);
-    //     usleep(500);
-    //     kill(km_pid, SIGUSR1);
-    //     usleep(500);
-    //     kill(drone_pid, SIGUSR1);
-    //     usleep(500);
-    //     kill(targets_pid, SIGUSR1);
-    //     usleep(500);
-    //     kill(obstacles_pid, SIGUSR1);
-    //     usleep(500);
-
-    //     /* kill(logger_pid, SIGUSR1); */
+        /* Monitor health of all of the processes */
+        // kill(server_pid, SIGUSR1);
+        // usleep(50);
+        // kill(interface_pid, SIGUSR1);
+        // usleep(50);
+        // kill(km_pid, SIGUSR1);
+        // usleep(50);
+        // kill(drone_pid, SIGUSR1);
+        // usleep(50);
+        // kill(targets_pid, SIGUSR1);
+        // usleep(50);
+        // kill(obstacles_pid, SIGUSR1);
+        // usleep(50);
 
 
-
-    //     // If any of the processess does not respond in given timeframe, close them all
-    //     if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
-    //         cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
-    //     {
-    //         send_sigint_to_all();
-    //     }
-    //     usleep(1000000);
-    // }
+        // If any of the processess does not respond in given timeframe, close them all
+        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
+            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
+        {
+            send_sigint_to_all();
+        }
+        usleep(1000000);
+    }
 
     return 0;
 }
@@ -172,32 +185,34 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
         {
         case SERVER_SYM:
             *server_pid = pid_temp;
-            printf("Server PID SET\n");
+            sprintf(msg, "Server PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);
             break;
         case WINDOW_SYM:
             *interface_pid = pid_temp;
-            printf("Interface PID SET\n");
+            sprintf(msg,"Interface PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);
             break;
         case KM_SYM:
             *km_pid = pid_temp;
-            printf("Key Manager PID SET\n");
+            printf(msg,"Key Manager PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);
             break;
         case DRONE_SYM:
             *drone_pid = pid_temp;
-            printf("Drone PID SET\n");
+            printf(msg,"Drone PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);
             break;
         case OBSTACLES_SYM:
             *obstacles_pid = pid_temp;
-            printf("Obstacles PID SET\n");
+            printf(msg,"Obstacles PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);
             break;
         case TARGETS_SYM:
             *targets_pid = pid_temp;
-            printf("Targets PID SET\n");
+            printf(msg,"Targets PID SET: %d", pid_temp);
+            log_msg(logfile, WD, msg);    
             break;
-        // case LOGGER_SYM:
-        //     *logger_pid = pid_temp;
-        //     printf("LOGGER PID SET\n");
-        //     break;
         default:
             perror("Wrong process symbol!");
             exit(1);
@@ -214,11 +229,8 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
         && *obstacles_pid != 0 && *targets_pid != 0) 
     {
         // Got all pids
-        printf("Those are obtained pids: \n");
-        printf("SERVER : %i \n WINDOW : %i \n KM : %i \n DRONE : %i \n" 
-                "OBSTACLES : %i \n TARGETS : %i \n", 
-                *server_pid, *interface_pid, *km_pid, *drone_pid, 
-                *obstacles_pid, *targets_pid);
+        sprintf(msg, "Got all pids");
+        log_msg(logfile, WD, msg);
     }
     else
     {
@@ -245,7 +257,12 @@ void send_sigint_to_all()
     kill(obstacles_pid, SIGINT);
     kill(targets_pid, SIGINT);
     // kill(logger_pid, SIGINT);
-    printf("WD sent SIGINT to all processes, exiting...\n");
+    sprintf(msg, "WD sent SIGINT to all processes, exiting...");
+    log_msg(logfile, WD, msg);
     exit(1);
 }
 
+void get_args(int argc, char *argv[])
+{
+    sscanf(argv[1], "%s", logfile);
+}

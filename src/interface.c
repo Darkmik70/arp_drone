@@ -9,6 +9,11 @@ int server_interface[2];
 int interface_server[2];
 
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
+
+
 int main(int argc, char *argv[])
 {
     // Read the file descriptors from the arguments
@@ -77,6 +82,8 @@ int main(int argc, char *argv[])
     Obstacles obstacles[80];
     int numObstacles;
 
+    sprintf(msg,"Interface initialized");
+    log_msg(logfile, INTERFACE, msg);
 
     while (1)
     {
@@ -207,6 +214,8 @@ int main(int argc, char *argv[])
 
         // Create a string for the player's current score
         sprintf(score_msg, "Your current score: %d", score);
+        strcpy(msg, score_msg);
+        log_msg(logfile, INTERFACE, msg);
         // Draws the window with the updated information of the terminal size, drone, targets, obstacles and score.
         draw_window(droneX, droneY, targets, numTargets, obstacles, numObstacles, score_msg);
 
@@ -329,7 +338,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     // printf(" Received signal number: %d \n", signo);
     if (signo == SIGINT)
     {
-        printf("Caught SIGINT \n");
+        sprintf(msg, "Caught SIGINT");
+        log_msg(logfile, INTERFACE, msg);
         // Close file desciptors and exit
         close(interface_km[1]);
         close(interface_drone[1]);
@@ -377,6 +387,6 @@ void draw_window(int droneX, int droneY, Targets *targets, int numTargets,
 // Function to obtain the file descriptors for all pipes
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d %d", &interface_km[1], &server_interface[0],
-           &interface_server[1], &interface_drone[1]);
+    sscanf(argv[1], "%d %d %d %d %s", &interface_km[1], &server_interface[0],
+           &interface_server[1], &interface_drone[1], logfile);
 }

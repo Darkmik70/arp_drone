@@ -5,6 +5,9 @@
 int interface_km;
 int km_server;
 
+char logfile[80];
+char msg[1024];
+
 int main(int argc, char *argv[]) 
 {
     // Read the file descriptors from the arguments
@@ -28,8 +31,8 @@ int main(int argc, char *argv[])
         char interface_msg[MSG_LEN];
         ssize_t bytes_read = read(interface_km, interface_msg, MSG_LEN);
         char pressed_key = interface_msg[0];
-        printf("Pressed key: %c\n", pressed_key);
-        // log_msg(msg_pressed_key);
+        sprintf(msg, "Pressed key: %c\n", pressed_key);
+        log_msg(logfile, KM, msg);
 
 
         //////////////////////////////////////////////////////
@@ -40,8 +43,8 @@ int main(int argc, char *argv[])
 
         if (action != "None"){
             write_to_pipe(km_server, action);
-            printf("[PIPE] SENT to server.c: %s\n", action);
-            // log_msg(msg);
+            sprintf(msg, "[PIPE] SENT to server.c: %s\n", action);
+            log_msg(logfile, KM, msg);
         }
     }
 
@@ -75,7 +78,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     // printf("Received signal number: %d \n", signo);
     if  (signo == SIGINT)
     {
-        printf("Caught SIGINT \n");
+        sprintf(msg, "Caught SIGINT \n");
+        log_msg(logfile, KM, msg);
+
         close(interface_km);
         close(km_server);
         exit(1);
@@ -90,14 +95,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     }
 }
 
-
-void log_msg(char *msg)
-{
-    write_message_to_logger(KM_SYM, INFO, msg);
-}
-
-
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &interface_km, &km_server);
+    sscanf(argv[1], "%d %d %s", &interface_km, &km_server, logfile);
 }

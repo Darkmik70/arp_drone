@@ -16,7 +16,7 @@ typedef struct {
     int x;
     int y;
     time_t spawnTime;
-} Obstacle; // Diferent from "Obstacles" in constants.h
+} Obstacle; // Diferent from OBS in constants.h
 
 /**
  * Obtain the file descriptors of the pipes given by the main process.

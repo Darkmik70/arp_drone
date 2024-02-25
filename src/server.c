@@ -24,6 +24,10 @@ int targets_sockfd;
 int sockfd;
 int newsockfd, portno, clilen, pid;
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
+
 int main(int argc, char *argv[]) 
 {   
     // Read the file descriptors from the arguments
@@ -35,11 +39,15 @@ int main(int argc, char *argv[])
     read_args_from_file("./src/config.txt", program_type, socket_data);
     char host_name[MSG_LEN];
     int port_number;
-    printf("Program type: %s\n", program_type);
+    sprintf(msg, "Program type: %s", program_type);
+    log_msg(logfile, SERVER, msg);
 
     parse_host_port(socket_data, host_name, &port_number);
-    printf("Host name: %s\n", host_name);
-    printf("Port number: %d\n", port_number);
+    sprintf(msg, "Host name: %s\n", host_name);
+    log_msg(logfile, SERVER, msg);
+
+    sprintf(msg, "Port number: %d\n", port_number);
+    log_msg(logfile, SERVER, msg);
 
     // Signals
     struct sigaction sa;
@@ -114,6 +122,7 @@ int main(int argc, char *argv[])
 
         char socket_msg[MSG_LEN];
         read_then_echo(newsockfd, socket_msg);
+        log_msg(logfile, "SOCKET", socket_msg);
 
         if (socket_msg[0] == 'O'){obstacles_sockfd = newsockfd;}
         else if(socket_msg[0] == 'T'){targets_sockfd = newsockfd;}
@@ -133,19 +142,22 @@ int main(int argc, char *argv[])
         char km_msg[MSG_LEN];
         if (read_pipe_unblocked(km_server[0], km_msg) == 1){
             // Read acknowledgement
-            printf("[PIPE] Received from key_manager.c: %s\n", km_msg);
+            sprintf(msg, "[PIPE] Received from key_manager.c: %s\n", km_msg);
+            log_msg(logfile, SERVER, msg);
+
             fflush(stdout);
             // STOP key pressed (P)
             if (km_msg[0] == 'S'){
-                write_then_wait_echo(targets_sockfd, km_msg, sizeof(km_msg));
-                write_then_wait_echo(obstacles_sockfd, km_msg, sizeof(km_msg));
+                write_then_wait_echo(targets_sockfd, km_msg, sizeof(km_msg),logfile, SERVER);
+                write_then_wait_echo(obstacles_sockfd, km_msg, sizeof(km_msg), logfile, SERVER);
                 exit(0);
             }
             // Response
             char response_km_msg[MSG_LEN*2];
             sprintf(response_km_msg, "K:%s", km_msg);
             write_to_pipe(server_drone[1], response_km_msg);
-            printf("[PIPE] Sent to drone.c: %s\n", response_km_msg);
+            sprintf(msg, "[PIPE] Sent to drone.c: %s\n", response_km_msg);
+            log_msg(logfile, SERVER, msg);
             fflush(stdout);
         }
         
@@ -158,26 +170,30 @@ int main(int argc, char *argv[])
 
         if (read_pipe_unblocked(interface_server[0], interface_msg) == 1){
             // Read acknowledgement
-            printf("[PIPE] Received from interface.c: %s\n", interface_msg);
+            sprintf(msg, "[PIPE] Received from interface.c: %s\n", interface_msg);
+            log_msg(logfile, SERVER, msg);
             fflush(stdout);
             // Response for drone.c
             write_to_pipe(server_drone[1], interface_msg);
-            printf("[PIPE] Sent to drone.c: %s\n", interface_msg);
+            sprintf(msg, "[PIPE] Sent to drone.c: %s\n", interface_msg);
+            log_msg(logfile, SERVER, msg);
             fflush(stdout);
 
             if(interface_msg[0] == 'I' && interface_msg[1] == '2'){
                 // Send to socket: Client Targets
                 char substring1[MSG_LEN];
                 strcpy(substring1, interface_msg +3);
-                write_then_wait_echo(targets_sockfd, substring1, sizeof(substring1));
+                write_then_wait_echo(targets_sockfd, substring1, sizeof(substring1), logfile, SERVER);
                 // Send to socket: Client Obstacles
                 char substring2[MSG_LEN];
                 strcpy(substring2, interface_msg +3);
-                write_then_wait_echo(obstacles_sockfd, substring2, sizeof(substring2));
-                printf("SENT %s to obstacles.c and targets.c\n", substring2);
+                write_then_wait_echo(obstacles_sockfd, substring2, sizeof(substring2), logfile, SERVER);
+                sprintf(msg, "SENT %s to obstacles.c and targets.c\n", substring2);
+                log_msg(logfile, SERVER, msg);
+
             }
             if (interface_msg[0] == 'G'){
-                write_then_wait_echo(targets_sockfd, interface_msg, sizeof(interface_msg));
+                write_then_wait_echo(targets_sockfd, interface_msg, sizeof(interface_msg), logfile, SERVER);
             }
         }    
         
@@ -191,12 +207,14 @@ int main(int argc, char *argv[])
             write_to_pipe(server_interface[1], drone_msg);
             // Only send to drone when data has changed
             if (strcmp(drone_msg, prev_drone_msg) != 0) {
-                printf("[PIPE] Received from drone.c: %s\n", drone_msg);
+                sprintf(msg, "[PIPE] Received from drone.c: %s\n", drone_msg);
+                log_msg(logfile, SERVER, msg);
+
                 fflush(stdout);
                 // Update previous values
                 strcpy(prev_drone_msg, drone_msg); 
-                printf("[PIPE] Sent to interface.c: %s\n", drone_msg);
-                fflush(stdout);
+                sprintf(msg,"[PIPE] Sent to interface.c: %s\n", drone_msg);
+                log_msg(logfile, SERVER, msg);
             }
         }
 
@@ -205,14 +223,18 @@ int main(int argc, char *argv[])
         /////////////////////////////////////////////////////
 
         char obstacles_msg[MSG_LEN];
-        if (read_then_echo_unblocked(obstacles_sockfd, obstacles_msg) == 1){
+        if (read_then_echo_unblocked(obstacles_sockfd, obstacles_msg, logfile, SERVER) == 1){
             // Send to interface.c
             write_to_pipe(server_interface[1],obstacles_msg);
-            printf("[PIPE] Send to interface.c: %s\n", obstacles_msg);
+            sprintf(msg,"[PIPE] Send to interface.c: %s\n", obstacles_msg);
+            log_msg(logfile, SERVER, msg);
+
             fflush(stdout);
             // Send to drone.c
             write_to_pipe(server_drone[1], obstacles_msg);
-            printf("[PIPE] Sent to drone.c: %s\n", obstacles_msg);
+            sprintf(msg, "[PIPE] Sent to drone.c: %s\n", obstacles_msg);
+            log_msg(logfile, SERVER, msg);
+
             fflush(stdout);
         }
 
@@ -221,11 +243,12 @@ int main(int argc, char *argv[])
         /////////////////////////////////////////////////////
 
         char targets_msg[MSG_LEN];
-        if (read_then_echo_unblocked(targets_sockfd, targets_msg) == 1){
+        if (read_then_echo_unblocked(targets_sockfd, targets_msg, logfile, SERVER) == 1)
+        {
             // Send to interface.c
             write_to_pipe(server_interface[1],targets_msg);
-            printf("[PIPE] Sent to interface.c: %s\n", targets_msg);
-            fflush(stdout);
+            sprintf(msg, "[PIPE] Sent to interface.c: %s\n", targets_msg);
+            log_msg(logfile, SERVER, msg);
         }
     }
 
@@ -240,7 +263,9 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     // printf("Received signal number: %d \n", signo);
     if (signo == SIGINT)
     {
-        printf("Caught SIGINT\n");
+        sprintf(msg, "Caught SIGINT");
+        log_msg(logfile, SERVER, msg);
+
         clean_up();
         exit(1);
     }
@@ -299,18 +324,16 @@ void clean_up()
     close(obstacles_sockfd);
     close(targets_sockfd);
     close(newsockfd);
-    printf("Clean up has been performed succesfully\n");
+    sprintf(msg, "Clean up has been performed succesfully");
+    log_msg(logfile, SERVER, msg);
+
 }
 
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d %d %d %d %d %d %d %d", &km_server[0], &server_drone[1], 
+    sscanf(argv[1], "%d %d %d %d %d %d %d %d %d %s", &km_server[0], &server_drone[1], 
     &interface_server[0], &drone_server[0], &server_interface[1],
     &server_obstacles[1], &obstacles_server[0], &server_targets[1],
-    &targets_server[0]);
+    &targets_server[0], logfile);
 }
-
-
-
-

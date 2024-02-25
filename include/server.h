@@ -17,6 +17,7 @@ void *create_shm(char *name);
 
 /**
  * Obtain the file descriptors of the pipes given by the main process.
+ * Obtain the filepath to the logfile
 */
 void get_args(int argc, char *argv[]);
 

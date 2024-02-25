@@ -8,8 +8,15 @@ int targets_server[1];
 // Sockets
 int sockfd;
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
+
 int main(int argc, char *argv[]) 
 {
+    // Read the file descriptors from the arguments
+    get_args(argc, argv);
+
     sleep(1);
 
     // Read the config.txt file
@@ -18,16 +25,20 @@ int main(int argc, char *argv[])
     read_args_from_file("./src/config.txt", program_type, socket_data);
     char host_name[MSG_LEN];
     int port_number;
-    printf("Program type: %s\n", program_type);
+    sprintf(msg, "Program type: %s\n", program_type);
+    log_msg(logfile, TARGETS, msg);
 
     parse_host_port(socket_data, host_name, &port_number);
-    printf("Host name: %s\n", host_name);
-    printf("Port number: %d\n", port_number);
+    sprintf(msg, "Host name: %s\n", host_name);
+    log_msg(logfile, TARGETS, msg);
+    sprintf(msg, "Port number: %d\n", port_number);
+    log_msg(logfile, TARGETS, msg);
 
-    if (strcmp(program_type, "server") == 0){exit(0);}
 
-    // Read the file descriptors from the arguments
-    get_args(argc, argv);
+    if (strcmp(program_type, "server") == 0)
+    {
+        exit(0);
+    }
 
     // Signals
     struct sigaction sa;
@@ -80,7 +91,8 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////
 
     char init_msg[] = "TI";
-    write_then_wait_echo(sockfd, init_msg, sizeof(init_msg));
+    write_then_wait_echo(sockfd, init_msg, sizeof(init_msg), logfile, TARGETS);
+    log_msg(logfile, TARGETS, init_msg);
 
 
     //////////////////////////////////////////////////////
@@ -163,7 +175,8 @@ int main(int argc, char *argv[])
             targets_msg[offset] = '\0'; // Null-terminate the string
 
             // Send the data to the server
-            write_then_wait_echo(sockfd, targets_msg, sizeof(targets_msg));
+            write_then_wait_echo(sockfd, targets_msg, sizeof(targets_msg), logfile, TARGETS);
+
             targets_created = 1;
         }
 
@@ -177,9 +190,11 @@ int main(int argc, char *argv[])
         read_then_echo(sockfd, socket_msg);
 
         if (strcmp(socket_msg, "STOP") == 0){
-            printf("STOP RECEIVED FROM SERVER!\n");
-            printf("This process will close in 5 seconds...\n");
-            fflush(stdout);
+            sprintf(msg,"STOP RECEIVED FROM SERVER!\n");
+            log_msg(logfile, TARGETS, msg);
+
+            sprintf(msg, "This process will close in 5 seconds...\n");
+            log_msg(logfile, TARGETS, msg);
             sleep(5);
             exit(0);
         }
@@ -199,7 +214,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     // printf("Received signal number: %d \n", signo);
     if  (signo == SIGINT)
     {
-        printf("Caught SIGINT \n");
+        sprintf(msg, "Caught SIGINT \n");
+        log_msg(logfile, TARGETS, msg);
         clean_up();
         exit(1);
     }
@@ -216,7 +232,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &server_targets[0], &targets_server[1]);
+    sscanf(argv[1], "%d %d %s", &server_targets[0], &targets_server[1], logfile);
 }
 
 void clean_up()

@@ -3,7 +3,9 @@
 
 #include <sys/types.h>
 
-#define THRESHOLD 100 // Threshold for counters
+#define THRESHOLD 7 // Threshold for counters
+
+void get_args(int argc, char *argv[]);
 
 /**
  * Get PIDs from other processes.

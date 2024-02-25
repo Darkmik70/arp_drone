@@ -5,9 +5,15 @@
 int server_obstacles[2];
 int obstacles_server[2];
 
+char logfile[80]; // path to logfile
+char msg[1024];
+
 
 int main(int argc, char *argv[])
 {   
+    // Read the file descriptors from the arguments
+    get_args(argc, argv);
+
     sleep(1);
     // Read the config.txt file
     char program_type[MSG_LEN];
@@ -15,17 +21,19 @@ int main(int argc, char *argv[])
     read_args_from_file("./src/config.txt", program_type, socket_data);
     char host_name[MSG_LEN];
     int port_number;
-    printf("Program type: %s\n", program_type);
+    sprintf(msg, "Program type: %s\n", program_type);
+    log_msg(logfile, OBS, msg);
 
     parse_host_port(socket_data, host_name, &port_number);
-    printf("Host name: %s\n", host_name);
-    printf("Port number: %d\n", port_number);
+    sprintf(msg, "Host name: %s\n", host_name);
+    log_msg(logfile, OBS, msg);
+
+    sprintf(msg, "Port number: %d\n", port_number);
+    log_msg(logfile, OBS, msg);
 
     if (strcmp(program_type, "server") == 0){exit(0);}
 
 
-    // Read the file descriptors from the arguments
-    get_args(argc, argv);
     // Signals
     struct sigaction sa;
     sa.sa_sigaction = signal_handler; 
@@ -74,7 +82,7 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////
 
     char init_msg[] = "OI";
-    write_then_wait_echo(sockfd, init_msg, sizeof(init_msg));
+    write_then_wait_echo(sockfd, init_msg, sizeof(init_msg),logfile, OBS);
 
     //////////////////////////////////////////////////////
     /* OBTAIN DIMENSIONS */
@@ -83,6 +91,8 @@ int main(int argc, char *argv[])
     // According to protocol, this will be the screen dimensions.
     char dimension_msg[MSG_LEN];
     read_then_echo(sockfd, dimension_msg);
+    log_msg(logfile, "OBSTACLES - SOCKET", dimension_msg);
+
 
     float temp_scx, temp_scy;
     sscanf(dimension_msg, "%f,%f", &temp_scx, &temp_scy);
@@ -96,11 +106,14 @@ int main(int argc, char *argv[])
         /////////////////////////////////////////////////////
 
         char socket_msg[MSG_LEN];   
-        read_then_echo_unblocked(sockfd, socket_msg);
+
+        read_then_echo_unblocked(sockfd, socket_msg, logfile, OBS);
 
         if (strcmp(socket_msg, "STOP") == 0){
-            printf("STOP RECEIVED FROM SERVER!\n");
-            printf("This process will close in 5 seconds...");
+            sprintf(msg,"STOP RECEIVED FROM SERVER!");
+            log_msg(logfile, OBS, msg);
+            sprintf(msg,"This process will close in 5 seconds...");
+            log_msg(logfile, OBS, msg);
             fflush(stdout);
             sleep(5);
             exit(0);
@@ -137,7 +150,7 @@ int main(int argc, char *argv[])
         }
 
         // SEND DATA TO SERVER
-        write_then_wait_echo(sockfd, obstacles_msg, sizeof(obstacles_msg));
+        write_then_wait_echo(sockfd, obstacles_msg, sizeof(obstacles_msg), logfile, "OBSTSACLES");
     }
 
     return 0;
@@ -159,7 +172,9 @@ void generate_obstacles_string(Obstacle obstacles[], int numObstacles, char obst
             sprintf(obstacles_msg + strlen(obstacles_msg), "|");
         }
     }
-    printf("%s\n", obstacles_msg);
+    sprintf(msg, "Generated Obstacles - %s", obstacles_msg);
+    log_msg(logfile, OBS, msg);
+
     fflush(stdout);
 }
 
@@ -168,7 +183,8 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
     // printf("Received signal number: %d \n", signo);
     if  (signo == SIGINT)
     {
-        printf("Caught SIGINT \n");
+        sprintf(msg, "Caught SIGINT");
+        log_msg(logfile, OBS, msg);
         close(obstacles_server[1]);
         close(server_obstacles[0]);
         exit(1);
@@ -186,6 +202,6 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
 
 void get_args(int argc, char *argv[])
 {
-    sscanf(argv[1], "%d %d", &server_obstacles[0], &obstacles_server[1]);
+    sscanf(argv[1], "%d %d %s", &server_obstacles[0], &obstacles_server[1], logfile);
 }
 
