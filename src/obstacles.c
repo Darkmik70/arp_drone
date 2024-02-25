@@ -74,9 +74,10 @@ int main(int argc, char *argv[])
          server->h_length);
     serv_addr.sin_port = htons(portno);
 
-    if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
+    block_signal(SIGUSR1);
+    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         log_err(logfile, OBS, "ERROR connecting");
-
+    unblock_signal(SIGUSR1);
     //////////////////////////////////////////////////////
     /* IDENTIFICATION WITH SERVER */
     /////////////////////////////////////////////////////

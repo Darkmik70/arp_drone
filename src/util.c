@@ -1,4 +1,30 @@
 #include "common.h"
+#include <signal.h>
+
+// block the sspecified signal signal
+void block_signal(int signal)
+{
+    // Create a set of signals to block
+    sigset_t sigset;
+    // Initialize the set to 0
+    sigemptyset(&sigset);
+    // Add the signal to the set
+    sigaddset(&sigset, signal);
+    // Add the signals in the set to the process' blocked signals
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
+}
+
+void unblock_signal(int signal)
+{   
+    // Create a set of signals to unblock
+    sigset_t sigset;
+    // Initialize the set to 0
+    sigemptyset(&sigset);
+    // Add the signal to the set
+    sigaddset(&sigset, signal);
+    // Remove the signals in the set from the process' blocked signals
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+}
 
 // Publish the PID integer value to the watchdog.
 void publish_pid_to_wd(int process_symbol, pid_t pid)
@@ -93,37 +119,6 @@ void write_to_pipe(int pipe_fd, char message[])
     }
 }
 
-// Writes the provided message into the logger.
-void write_message_to_logger(int who, int type, char *msg)
-{
-    int shm_logs_fd = shm_open(SHM_LOGS, O_RDWR, 0666);
-    void *ptr_logs = mmap(0, SIZE_SHM, PROT_READ | PROT_WRITE, MAP_SHARED, shm_logs_fd, 0);
-
-    sem_t *sem_logs_1 = sem_open(SEM_LOGS_1, 0);
-    sem_t *sem_logs_2 = sem_open(SEM_LOGS_2, 0);
-    sem_t *sem_logs_3 = sem_open(SEM_LOGS_3, 0);
-
-    sem_wait(sem_logs_1);
-
-    // unsure if it will work
-    sprintf(ptr_logs, "%i|%i|%s", who, type, msg);
-
-    // Message is ready to be read
-    sem_post(sem_logs_2);
-
-    // wait for logger to finish writing
-    sem_wait(sem_logs_3);
-
-    // allow other processes to log their messages
-    sem_post(sem_logs_1);
-
-    // Detach from shared memorry
-    munmap(ptr_logs,SIZE_SHM);
-    close(shm_logs_fd);
-    sem_close(sem_logs_1);
-    sem_close(sem_logs_2);
-    sem_close(sem_logs_3);
-}
 
 // Reads a message from the socket, then does an echo.
 void read_then_echo(int sockfd, char socket_msg[]){
@@ -131,14 +126,18 @@ void read_then_echo(int sockfd, char socket_msg[]){
     bzero(socket_msg, MSG_LEN);
 
     // READ from the socket
+    block_signal(SIGUSR1);
     bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
+    unblock_signal(SIGUSR1);
     if (bytes_read < 0) perror("ERROR reading from socket");
     else if (bytes_read == 0) {return;}  // Connection closed
     else if (socket_msg[0] == '\0') {return;} // Empty string
     // printf("[SOCKET] Received: %s\n", socket_msg);
     
     // ECHO data into socket
+    block_signal(SIGUSR1);
     bytes_written = write(sockfd, socket_msg, bytes_read);
+    unblock_signal(SIGUSR1);
     if (bytes_written < 0) {perror("ERROR writing to socket");}
     // printf("[SOCKET] Echo sent: %s\n", socket_msg);
 }
@@ -146,6 +145,7 @@ void read_then_echo(int sockfd, char socket_msg[]){
 // Reads a message from the socket, with select() system call, then does an echo.
 int read_then_echo_unblocked(int sockfd, char socket_msg[], char* logfile,char *log_who)
 {
+    char msg_logs[1024];
     int ready;
     int bytes_read, bytes_written;
     fd_set read_fds;
@@ -161,23 +161,28 @@ int read_then_echo_unblocked(int sockfd, char socket_msg[], char* logfile,char *
     FD_SET(sockfd, &read_fds);
 
     // Use select to check if the socket is ready for reading
+    block_signal(SIGUSR1);
     ready = select(sockfd + 1, &read_fds, NULL, NULL, &timeout);
+    unblock_signal(SIGUSR1);
     if (ready < 0) {perror("ERROR in select");} 
     else if (ready == 0) {return 0;}  // No data available
+    else
+    {
+        // Data is available for reading, so read from the socket
+        bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
+        if (bytes_read < 0) {perror("ERROR reading from socket");} 
+        else if (bytes_read == 0) {return 0;}  // Connection closed
+        else if (socket_msg[0] == '\0') {return 0;} // Empty string
 
-    // Data is available for reading, so read from the socket
-    bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
-    if (bytes_read < 0) {perror("ERROR reading from socket");} 
-    else if (bytes_read == 0) {return 0;}  // Connection closed
-    else if (socket_msg[0] == '\0') {return 0;} // Empty string
+        sprintf(msg_logs, "[SOCKET] Received: %s\n", socket_msg);
+        log_msg(logfile, log_who, msg_logs);
+    }
 
-    // Print the received message
-    char msg_logs[1024];
-    sprintf(msg_logs, "[SOCKET] Received: %s\n", socket_msg);
-    log_msg(logfile, log_who, msg_logs);
 
     // Echo the message back to the client
+    block_signal(SIGUSR1);
     bytes_written = write(sockfd, socket_msg, bytes_read);
+    unblock_signal(SIGUSR1);
     if (bytes_written < 0) {perror("ERROR writing to socket");}
     else
     { 
@@ -195,7 +200,9 @@ void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size, char *
     char msg[1024];
 
     while(correct_echo == 0){
+        block_signal(SIGUSR1);
         bytes_written = write(sockfd, socket_msg, msg_size);
+        unblock_signal(SIGUSR1);
         if (bytes_written < 0) {perror("ERROR writing to socket");}
         sprintf(msg, "[SOCKET] Sent: %s\n", socket_msg);
         log_msg(logfile, log_who, msg);
@@ -204,7 +211,9 @@ void write_then_wait_echo(int sockfd, char socket_msg[], size_t msg_size, char *
 
         while (response_msg[0] == '\0'){
             // Data is available for reading, so read from the socket
+            block_signal(SIGUSR1);
             bytes_read = read(sockfd, response_msg, bytes_written);
+            unblock_signal(SIGUSR1);
             if (bytes_read < 0) {perror("ERROR reading from socket");} 
             else if (bytes_read == 0) {printf("Connection closed!\n"); return;}
         }
@@ -229,8 +238,13 @@ int read_pipe_unblocked(int pipefd, char msg[]){
 
     char buffer[MSG_LEN];
 
+    block_signal(SIGUSR1);
     int ready_km = select(pipefd + 1, &read_pipe, NULL, NULL, &timeout);
-    if (ready_km == -1) {perror("Error in select");}
+    unblock_signal(SIGUSR1);
+    if (ready_km == -1)
+    {
+        perror("Error in select");
+    }
 
     if (ready_km > 0 && FD_ISSET(pipefd, &read_pipe)) {
         ssize_t bytes_read_pipe = read(pipefd, buffer, MSG_LEN);

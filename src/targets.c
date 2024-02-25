@@ -82,8 +82,10 @@ int main(int argc, char *argv[])
          server->h_length);
     serv_addr.sin_port = htons(portno);
 
-    if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
+    block_signal(SIGUSR1);
+    if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         log_err(logfile, TARGETS, "ERROR connecting");
+    unblock_signal(SIGUSR1);
 
 
     //////////////////////////////////////////////////////
@@ -113,7 +115,7 @@ int main(int argc, char *argv[])
         //////////////////////////////////////////////////////
         /* SECTION 1: TARGET GENERATION & SEND DATA*/
         /////////////////////////////////////////////////////
-        
+
         // Array to store generated targets
         Target targets[MAX_TARGETS];
 
@@ -187,7 +189,7 @@ int main(int argc, char *argv[])
         /* Because the targets process does not need to run continously, 
         we may use a blocking-read for the socket */
         char socket_msg[MSG_LEN];
-        read_then_echo(sockfd, socket_msg);
+        read_then_echo_unblocked(sockfd, socket_msg, logfile, TARGETS);
 
         if (strcmp(socket_msg, "STOP") == 0){
             sprintf(msg,"STOP RECEIVED FROM SERVER!\n");

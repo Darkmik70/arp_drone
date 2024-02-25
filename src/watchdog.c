@@ -76,7 +76,7 @@ void signal_handler(int signo, siginfo_t *siginfo, void *context)
         {
             sprintf(msg, "Received SIGUSR2 from Targets\n");
             log_msg(logfile, WD, msg);
-            cnt_obstacles = 0;
+            cnt_targets = 0;
         }
     }
  }
@@ -121,34 +121,36 @@ int main(int argc, char* argv[])
     while(1)
     {
         // increment counter
-        // cnt_server++;
-        // cnt_window++;
-        // cnt_km++;
-        // cnt_drone++;
+        cnt_server++;
+        cnt_window++;
+        cnt_km++;
+        cnt_drone++;
+        // FIXME: Unknown problems with signal handling in obstacles and targets
         // cnt_obstacles++;
         // cnt_targets++;
-        // fflush(stdout);
-        /* cnt_logger++; */
 
         /* Monitor health of all of the processes */
-        // kill(server_pid, SIGUSR1);
-        // usleep(50);
-        // kill(interface_pid, SIGUSR1);
-        // usleep(50);
-        // kill(km_pid, SIGUSR1);
-        // usleep(50);
-        // kill(drone_pid, SIGUSR1);
-        // usleep(50);
-        // kill(targets_pid, SIGUSR1);
-        // usleep(50);
-        // kill(obstacles_pid, SIGUSR1);
-        // usleep(50);
+        kill(server_pid, SIGUSR1);
+        usleep(50);
+        kill(interface_pid, SIGUSR1);
+        usleep(50);
+        kill(km_pid, SIGUSR1);
+        usleep(50);
+        kill(drone_pid, SIGUSR1);
+        usleep(50);
+        kill(targets_pid, SIGUSR1);
+        usleep(50);
+        kill(obstacles_pid, SIGUSR1);
+        usleep(50);
 
 
         // If any of the processess does not respond in given timeframe, close them all
         if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
-            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD /*|| cnt_logger > THRESHOLD */)
+            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD)
         {
+            sprintf(msg, "One of the counters has went through threshold, Threshold value: %d, values - server: %d window : % d, key manager : % d, drone : % d, targets : % d, obstacles : % d",
+                    THRESHOLD, cnt_server, cnt_window, cnt_km, cnt_drone, cnt_targets, cnt_obstacles);
+            log_msg(logfile, WD, msg);
             send_sigint_to_all();
         }
         usleep(1000000);
@@ -195,22 +197,22 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
             break;
         case KM_SYM:
             *km_pid = pid_temp;
-            printf(msg,"Key Manager PID SET: %d", pid_temp);
+            sprintf(msg,"Key Manager PID SET: %d", pid_temp);
             log_msg(logfile, WD, msg);
             break;
         case DRONE_SYM:
             *drone_pid = pid_temp;
-            printf(msg,"Drone PID SET: %d", pid_temp);
+            sprintf(msg,"Drone PID SET: %d", pid_temp);
             log_msg(logfile, WD, msg);
             break;
         case OBSTACLES_SYM:
             *obstacles_pid = pid_temp;
-            printf(msg,"Obstacles PID SET: %d", pid_temp);
+            sprintf(msg,"Obstacles PID SET: %d", pid_temp);
             log_msg(logfile, WD, msg);
             break;
         case TARGETS_SYM:
             *targets_pid = pid_temp;
-            printf(msg,"Targets PID SET: %d", pid_temp);
+            sprintf(msg,"Targets PID SET: %d", pid_temp);
             log_msg(logfile, WD, msg);    
             break;
         default:

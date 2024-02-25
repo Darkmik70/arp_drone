@@ -117,7 +117,9 @@ int main(int argc, char *argv[])
     /////////////////////////////////////////////////////
   
     while(targets_sockfd == 0 || obstacles_sockfd == 0){
-        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        block_signal(SIGUSR1);
+        newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+        unblock_signal(SIGUSR1);
         if (newsockfd < 0) {log_err(logfile, SERVER, "ERROR on accept");}
 
         char socket_msg[MSG_LEN];

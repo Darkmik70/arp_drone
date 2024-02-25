@@ -15,6 +15,20 @@
 void log_msg(char *filepath, char *who, char *message);
 
 /**
+ * block the specified signal
+ * @param signal specified signal
+ *
+*/
+void block_signal(int signal);
+
+/**
+ * block the specified signal
+ * @param signal specified signal
+ *
+ */
+void unblock_signal(int signal);
+
+/**
  * log error to the logfile
  * 
  * @param filepath filepath to the logfile
@@ -33,8 +47,6 @@ void log_err(char *filepath, char *who, char *message);
 void publish_pid_to_wd(int process_symbol, pid_t pid);
 
 void write_to_pipe(int pipe_fd, char message[]);
-
-void write_message_to_logger(int who, int type, char *msg);
 
 void read_then_echo(int sockfd, char socket_msg[]);
 
