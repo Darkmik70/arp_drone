@@ -32,9 +32,9 @@ make clean
 
 ## Usage
 This program has three main modes:
-- Standalone: The game is able to be played locally.
-- Server: The game is able to be played but requires the server to accept connections with two external clients (obstacles and targets).
-- Client: Only the obstacles/targets processes will be operational. They will provide a remote server with the expected data. No game can be played on the local machine.
+- `Standalone`: The game is able to be played locally.
+- `Server`: The game is able to be played but requires the server to accept connections with two external clients (obstacles and targets).
+- `Client`: Only the obstacles/targets processes will be operational. They will provide a remote server with the expected data. No game can be played on the local machine.
 
 To change the execution mode, open the ```config.txt``` file, and make the necessary changes to the only uncommented line.
 The instructions are included at the top of the same file.
@@ -95,7 +95,8 @@ The program consists on the following main 8 components:
 For further details on all of the above mentioned components. please refer to the description below.
 
 ### Main
-Main process is the father of all processes. It creates child processes by using `fork()` and runs them inside a wrapper program `Konsole` to display the current status, debugging messages until an additional thread/process for colleceting log messages.
+Main process is the father of all processes. It creates child processes by using `fork()` and runs them in the background. Window process, which is the main interface is run inside a wrapper `Konsole` as a separate window.
+The program prints out some information and logs relevant information during its run.
 
 Every pipe for use in the program is created using `pipe()`, and each of the file descriptors are passed to the arguments of the processes created. The read or write end of each pipe is assigned to exclusively one process.
 
@@ -115,6 +116,8 @@ Watchdog's job is to monitor the "health" of all of the processes, which means a
 During initialization it gets from special shared memory segment the PIDs of processes, (remember that in main we are running the wrapper process Konsole, so its not possible to get to know the actual PID from `fork()` in `main`, at this point at least).
 
 Then the process enters while loop where it sends `SIGUSR1` to all of the processes checking if they are alive. They respond with `SIGUSR2` back to watchdog, knowing its PID thanks to `siginfo_t`. This zeroes the counter for programs to response. If the counter for any of them reaches the threshold, Watchdog sends `SIGINT` to all of the processes, and exits, making sure all of the semaphores it was using are closed. The same thing happens when Watchdog is interrupted.
+
+In the final assignment we have disabled watchdog while running in modes "server" or "client", as its behaviour is unexpected and we did not manage to find the erors and correct them. The behavior stays the same for "standalone"
 
 ### Interface
 The interface process handles user interaction within the `Konsole` program by creating a graphical environment. This environment is designed to receive user inputs, represented by key presses, and subsequently display the updated state of the program.
@@ -148,4 +151,17 @@ The targets position on the screen is calculated in a combination of randomness 
 The obstacles process uses ```sockets``` for IPC with the server. It also requires, before the main loop, to obtain the screen dimensions of the window. However, there are multiple key difference regarding how these are spawned, in comparison with the targets. 
 
 At first, they are truly randomly generated throughout the entirety of the screen. Second, because the obstacles appear and dissapear at random intervals, it never stops sendind data to the server, updating the new coordinates for each obstacle. Many pre-defined variables directly affect the behavior of the creation of targets, which mostly relate to the minimun and maximum time they will appear on the screen, or the rate at which they are generated.
+
+### Logs
+For logging we have created an approach where instead of a special process that would log everything, we create one log session file in .txt that in name has the precise timestamp when the session started e.g: `logfile_20240226_200817.txt`. There are two ways of logging. Processes may log a message of type info `[INFO]` using `log_msg()` or an error using `log_err()`. The messages look like the examples below:
+```
+[INFO][MAIN] at [20:08:18] Child process ./build/key_manager with PID: 65136  was created
+[INFO][MAIN] at [20:08:18] Child process ./build/drone with PID: 65139  was created
+[INFO][MAIN] at [20:08:18] Child process ./build/watchdog with PID: 65140  was created
+[INFO][WATCHDOG] at [20:08:18] current pid 65119  symbol 1 
+[INFO][WATCHDOG] at [20:08:18] Server PID SET: 65119
+[ERROR][SERVER] at [20:08:18] ERROR on binding
+```
+
+The message displays the type of message, either `[INFO]` or `[ERROR]`, who is logging `[PROCESS]` and timestamp when the event occurs with format `[HH:MM:SS]` e.g. `[20:08:18]`
 
