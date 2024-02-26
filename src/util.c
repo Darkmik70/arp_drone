@@ -125,14 +125,23 @@ void read_then_echo(int sockfd, char socket_msg[]){
     int bytes_read, bytes_written;
     bzero(socket_msg, MSG_LEN);
 
+    int correct_read = 0;
     // READ from the socket
-    block_signal(SIGUSR1);
-    bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
-    unblock_signal(SIGUSR1);
-    if (bytes_read < 0) perror("ERROR reading from socket");
-    else if (bytes_read == 0) {return;}  // Connection closed
-    else if (socket_msg[0] == '\0') {return;} // Empty string
-    // printf("[SOCKET] Received: %s\n", socket_msg);
+    while(correct_read == 0)
+    {
+        block_signal(SIGUSR1);
+        bytes_read = read(sockfd, socket_msg, MSG_LEN - 1);
+        unblock_signal(SIGUSR1);
+        if (bytes_read < 0) perror("ERROR reading from socket");
+        else if (bytes_read == 0) {continue;}  // Connection closed
+        else if (socket_msg[0] == '\0') {continue;} // Empty string
+
+        if (bytes_read > 0) 
+        {
+            correct_read = 1;
+        }
+        // printf("[SOCKET] Received: %s\n", socket_msg);
+    }
     
     // ECHO data into socket
     block_signal(SIGUSR1);
