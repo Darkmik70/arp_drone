@@ -1,6 +1,10 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+// Path to config file
+#define CONFIG_PATH "./config.txt"
+
+
 // General message length
 #define MSG_LEN 256
 

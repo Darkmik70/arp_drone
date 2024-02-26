@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     // Read the config.txt file
     char program_type[MSG_LEN];
     char socket_data[MSG_LEN];
-    read_args_from_file("./src/config.txt", program_type, socket_data);
+    read_args_from_file(CONFIG_PATH, program_type, socket_data);
     char host_name[MSG_LEN];
     int port_number;
     sprintf(msg, "Program type: %s", program_type);

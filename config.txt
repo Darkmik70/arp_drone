@@ -10,7 +10,7 @@
 # For client write the IP of the remote machine and its port
 # For standalone write localhost and a port
 
-standalone localhost:2000
+server 172.17.0.3:3000
 
 
 

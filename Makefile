@@ -14,12 +14,10 @@ all: $(BUILDDIR) util wd server km drone interface main targets obstacles
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
-# create build directory
-$(LOGDIR):
-	mkdir -p $(BUILDDIR)/$(LOGDIR)
 
 # Run project
 run:
+	mkdir -p $(BUILDDIR)/logs
 	./$(BUILDDIR)/main $(ARGS)
 
 clean:

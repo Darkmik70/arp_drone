@@ -108,6 +108,9 @@ int main(int argc, char* argv[])
     sprintf(msg, "PID of WATCHDOG: %d\n", wd_pid);
     log_msg(logfile, WD, msg);
 
+    // decide on mode
+    char mode[80];
+    read_args_from_file(CONFIG_PATH, mode, NULL);
 
     /*TODO: remove hardcoded values in WATCHDOG */
     cnt_server = 0;
@@ -118,40 +121,43 @@ int main(int argc, char* argv[])
     cnt_obstacles = 0;
     cnt_targets = 0;
 
-    while(1)
+    while (1)
     {
-        // increment counter
-        cnt_server++;
-        cnt_window++;
-        cnt_km++;
-        cnt_drone++;
-        // FIXME: Unknown problems with signal handling in obstacles and targets
-        // cnt_obstacles++;
-        // cnt_targets++;
-
-        /* Monitor health of all of the processes */
-        kill(server_pid, SIGUSR1);
-        usleep(50);
-        kill(interface_pid, SIGUSR1);
-        usleep(50);
-        kill(km_pid, SIGUSR1);
-        usleep(50);
-        kill(drone_pid, SIGUSR1);
-        usleep(50);
-        kill(targets_pid, SIGUSR1);
-        usleep(50);
-        kill(obstacles_pid, SIGUSR1);
-        usleep(50);
-
-
-        // If any of the processess does not respond in given timeframe, close them all
-        if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
-            cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD)
+        // do diagnostics only for standalone
+        if (strcmp(mode, "standalone") == 0)
         {
-            sprintf(msg, "One of the counters has went through threshold, Threshold value: %d, values - server: %d window : % d, key manager : % d, drone : % d, targets : % d, obstacles : % d",
-                    THRESHOLD, cnt_server, cnt_window, cnt_km, cnt_drone, cnt_targets, cnt_obstacles);
-            log_msg(logfile, WD, msg);
-            send_sigint_to_all();
+            // increment counter
+            cnt_server++;
+            cnt_window++;
+            cnt_km++;
+            cnt_drone++;
+            // FIXME: Unknown problems with signal handling in obstacles and targets
+            // cnt_obstacles++;
+            // cnt_targets++;
+
+            /* Monitor health of all of the processes */
+            kill(server_pid, SIGUSR1);
+            usleep(50);
+            kill(interface_pid, SIGUSR1);
+            usleep(50);
+            kill(km_pid, SIGUSR1);
+            usleep(50);
+            kill(drone_pid, SIGUSR1);
+            usleep(50);
+            kill(targets_pid, SIGUSR1);
+            usleep(50);
+            kill(obstacles_pid, SIGUSR1);
+            usleep(50);
+
+            // If any of the processess does not respond in given timeframe, close them all
+            if (cnt_server > THRESHOLD || cnt_window > THRESHOLD || cnt_km > THRESHOLD || cnt_drone > THRESHOLD ||
+                cnt_targets > THRESHOLD || cnt_obstacles > THRESHOLD)
+            {
+                sprintf(msg, "One of the counters has went through threshold, Threshold value: %d, values - server: %d window : % d, key manager : % d, drone : % d, targets : % d, obstacles : % d",
+                        THRESHOLD, cnt_server, cnt_window, cnt_km, cnt_drone, cnt_targets, cnt_obstacles);
+                log_msg(logfile, WD, msg);
+                send_sigint_to_all();
+            }
         }
         usleep(1000000);
     }
@@ -182,7 +188,8 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
         int symbol = 0;
         pid_t pid_temp;
         sscanf(ptr_wd, "%i %i", &symbol, &pid_temp);
-        // printf("current pid %d  symbol %i \n", pid_temp, symbol);
+        sprintf(msg,"current pid %d  symbol %i \n", pid_temp, symbol);
+        log_msg(logfile, WD, msg);
         switch (symbol)
         {
         case SERVER_SYM:
@@ -216,8 +223,9 @@ int get_pids(pid_t *server_pid, pid_t *interface_pid, pid_t *km_pid,
             log_msg(logfile, WD, msg);    
             break;
         default:
-            perror("Wrong process symbol!");
-            exit(1);
+            sprintf(msg, "Wrong process symbol!: %d ", symbol);
+            log_err(logfile, WD, msg);
+            // exit(1);
         }
 
         // clear memory to make sure we got everything we need
