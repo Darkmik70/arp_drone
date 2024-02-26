@@ -153,7 +153,8 @@ The obstacles process uses ```sockets``` for IPC with the server. It also requir
 At first, they are truly randomly generated throughout the entirety of the screen. Second, because the obstacles appear and dissapear at random intervals, it never stops sendind data to the server, updating the new coordinates for each obstacle. Many pre-defined variables directly affect the behavior of the creation of targets, which mostly relate to the minimun and maximum time they will appear on the screen, or the rate at which they are generated.
 
 ### Logs
-For logging we have created an approach where instead of a special process that would log everything, we create one log session file in .txt that in name has the precise timestamp when the session started e.g: `logfile_20240226_200817.txt`. There are two ways of logging. Processes may log a message of type info `[INFO]` using `log_msg()` or an error using `log_err()`. The messages look like the examples below:
+For logging we have created an approach where instead of a special process that would log everything, we create one log session file in .txt that in name has the precise timestamp when the session started e.g: `logfile_20240226_200817.txt`. Main creates the logfile and rest of the processes can add their messages by opening the file and appending it with their log message.
+There are two ways of logging. Processes may log a message of type info `[INFO]` using `log_msg()` or an error using `log_err()`. The messages look like the examples below:
 ```
 [INFO][MAIN] at [20:08:18] Child process ./build/key_manager with PID: 65136  was created
 [INFO][MAIN] at [20:08:18] Child process ./build/drone with PID: 65139  was created
