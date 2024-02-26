@@ -80,7 +80,7 @@ The special key `p` is used to STOP the program itself.
 
 ## Overview 
 
-![Sketch of the architecture](architecture_pipes.png)
+![Sketch of the architecture](Architecture.jpeg)
 
 The program consists on the following main 8 components:
 - Main
