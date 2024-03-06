@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     /* IDENTIFICATION WITH SERVER */
     /////////////////////////////////////////////////////
 
-    char init_msg[] = "OI";
+    char init_msg[1024] = "OI";
     write_then_wait_echo(sockfd, init_msg, sizeof(init_msg),logfile, OBS);
 
     //////////////////////////////////////////////////////
@@ -103,6 +103,8 @@ int main(int argc, char *argv[])
     sscanf(dimension_msg, "%f,%f", &temp_scx, &temp_scy);
     screen_size_x = (int)temp_scx;
     screen_size_y = (int)temp_scy;
+    
+    sleep(1);
 
     while (1) {
 

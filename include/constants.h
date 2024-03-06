@@ -6,7 +6,7 @@
 
 
 // General message length
-#define MSG_LEN 256
+#define MSG_LEN 1024
 
 // Specific message length for logfiles
 #define LOG_LEN 256

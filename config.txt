@@ -10,7 +10,9 @@
 # For client write the IP of the remote machine and its port
 # For standalone write localhost and a port
 
-server 127.0.0.1:3000
+server localhost:8081
+
+# client localhost:8081
 
 
 
