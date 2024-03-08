@@ -1,17 +1,26 @@
 #ifndef KEY_MANAGER_H    
 #define KEY_MANAGER_H
 
+#include <signal.h>
+
+
 /**
- * Determine what action should be performed from user input.
+ * Takes the character from the user input and translates it into a command for the drone.
  * 
- * Function takes the the user input and translates it into command for drone.
- * drone_action is the memory segment to which command is written as a message.
- * For the steering, the layout of US Keyboard is assumed
- * 
- * @param pressedKey input provided by the user
+ * @param pressed_key   Input provided by the user
  * @returns Status of the action taken
 */
-char* determineAction(int pressedKey, char *sharedAct);
+char* determine_action(char pressed_key);
+
+/**
+ * Obtain the file descriptors of the pipes given by the main process.
+*/
+void get_args(int argc, char *argv[]);
+
+/**
+ * Handles the signals monitored by the watchdog process.
+*/
+void signal_handler(int signo, siginfo_t *siginfo, void *context);
 
 
 #endif // KEY_MANAGER_H

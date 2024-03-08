@@ -1,21 +1,23 @@
 # Source directory and build directory
 SRCDIR = ./src
 BUILDDIR = ./build
+LOGDIR = logs
 
 # UTILOBJ
 UTIL_OBJ = $(BUILDDIR)/util.o
 
 
 # Default target
-all: $(BUILDDIR) util wd server km drone interface main
+all: $(BUILDDIR) util wd server km drone interface main targets obstacles
 
-# create build directory
+# create build directory and logs
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
+	mkdir -p $(BUILDDIR)/$(LOGDIR)
 
 # Run project
 run:
-	./$(BUILDDIR)/main
+	./$(BUILDDIR)/main $(ARGS)
 
 clean:
 	rm -f $(BUILDDIR)/main
@@ -26,7 +28,7 @@ clean:
 	rm -f $(BUILDDIR)/watchdog
 	rm -f $(BUILDDIR)/util
 
-
+	
 drone:
 	gcc -I include -o $(BUILDDIR)/drone $(UTIL_OBJ) $(SRCDIR)/drone.c -pthread -lm
 main:
@@ -37,6 +39,10 @@ interface:
 	gcc -I include -o $(BUILDDIR)/interface $(UTIL_OBJ) $(SRCDIR)/interface.c -lncurses -pthread
 km:
 	gcc -I include -o $(BUILDDIR)/key_manager $(UTIL_OBJ) $(SRCDIR)/key_manager.c -pthread
+targets:
+	gcc -I include -o $(BUILDDIR)/targets $(UTIL_OBJ) $(SRCDIR)/targets.c
+obstacles:
+	gcc -I include -o $(BUILDDIR)/obstacles $(UTIL_OBJ) $(SRCDIR)/obstacles.c
 wd:
 	gcc -I include -o $(BUILDDIR)/watchdog $(UTIL_OBJ) $(SRCDIR)/watchdog.c
 util:
